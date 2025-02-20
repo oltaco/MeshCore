@@ -80,6 +80,10 @@
   #include <helpers/nrf52/T1000eBoard.h>
   #include <helpers/CustomLR1110Wrapper.h>
   static T1000eBoard board;
+#elif defined(FAKETEC)
+  #include <helpers/nrf52/faketecBoard.h>
+  #include <helpers/CustomSX1262Wrapper.h>
+  static faketecBoard board;
 #else
   #error "need to provide a 'board' object"
 #endif
@@ -1168,7 +1172,9 @@ void setup() {
   sprintf(dev_name, "MeshCore-%s", the_mesh.getNodeName());
   serial_interface.begin(dev_name, BLE_PIN_CODE);
 #else
+#ifdef RAK_4631
   pinMode(WB_IO2, OUTPUT);
+#endif
   serial_interface.begin(Serial);
 #endif
   the_mesh.startInterface(serial_interface);
