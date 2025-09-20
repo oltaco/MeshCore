@@ -2,8 +2,8 @@
 
 #include <RadioLib.h>
 
-#define LR1110_IRQ_HAS_PREAMBLE                     0b0000000100  //  4     4     valid LoRa header received
-#define LR1110_IRQ_HEADER_VALID                     0b0000010000  //  4     4     valid LoRa header received
+#define LR1110_IRQ_HAS_PREAMBLE                     RADIOLIB_LR11X0_IRQ_PREAMBLE_DETECTED
+#define LR1110_IRQ_HEADER_VALID                     RADIOLIB_LR11X0_IRQ_SYNC_WORD_HEADER_VALID
 
 class CustomLR1110 : public LR1110 {
   public:
