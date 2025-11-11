@@ -11,6 +11,8 @@ void SerialBLEInterface::onDisconnect(uint16_t connection_handle, uint8_t reason
   BLE_DEBUG_PRINTLN("SerialBLEInterface: disconnected reason=%d", reason);
   if(instance){
     instance->_isDeviceConnected = false;
+    instance-> clearBuffers(); // clear any queued frames
+    delay(200); // don't start advertising too quickly after disconnect
     instance->startAdv();
   }
 }
@@ -169,6 +171,11 @@ size_t SerialBLEInterface::checkRecvFrame(uint8_t dest[]) {
   if (send_queue_len > 0   // first, check send queue
     && millis() >= _last_write + BLE_WRITE_MIN_INTERVAL    // space the writes apart
   ) {
+    if (!Bluefruit.connected() || !bleuart.notifyEnabled()) {   // in theory we shouldn't get here, but just in case...
+      BLE_DEBUG_PRINTLN("checkRecvFrame: not connected!! dropping %d queued frames", send_queue_len);
+      clearBuffers();
+      return 0;
+    }
     _last_write = millis();
     bleuart.write(send_queue[0].buf, send_queue[0].len);
     BLE_DEBUG_PRINTLN("writeBytes: sz=%d, hdr=%d", (uint32_t)send_queue[0].len, (uint32_t) send_queue[0].buf[0]);
