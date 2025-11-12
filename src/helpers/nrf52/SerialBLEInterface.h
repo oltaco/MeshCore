@@ -12,6 +12,9 @@ class SerialBLEInterface : public BaseSerialInterface {
   bool _isEnabled;
   bool _isDeviceConnected;
   unsigned long _last_write;
+  
+  bool _advRestartPending = false;
+  uint32_t _advRestartTime = 0;
 
   struct Frame {
     uint8_t len;

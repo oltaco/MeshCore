@@ -11,9 +11,11 @@ void SerialBLEInterface::onDisconnect(uint16_t connection_handle, uint8_t reason
   BLE_DEBUG_PRINTLN("SerialBLEInterface: handle=%d, disconnected reason=%d", connection_handle, reason);
   if(instance){
     instance->_isDeviceConnected = false;
-    // instance->bleuart.flush(); // flush bleuart rx fifo
     // instance->clearBuffers(); // clear any queued frames
-    instance->startAdv();
+
+    instance->_advRestartPending = true;
+    instance->_advRestartTime = millis() + 10000; // schedule adv restart
+    BLE_DEBUG_PRINTLN("SerialBLEInterface: advertising restart scheduled for %d", instance->_advRestartTime);
   }
 }
 
@@ -58,6 +60,7 @@ void SerialBLEInterface::startAdv() {
 
   BLE_DEBUG_PRINTLN("SerialBLEInterface: starting advertising");
   
+  Bluefruit.Periph.setConnSupervisionTimeoutMS(750);
   // clean restart if already advertising
   if(Bluefruit.Advertising.isRunning()){
     BLE_DEBUG_PRINTLN("SerialBLEInterface: already advertising, stopping to allow clean restart");
@@ -168,7 +171,13 @@ bool SerialBLEInterface::isWriteBusy() const {
 }
 
 size_t SerialBLEInterface::checkRecvFrame(uint8_t dest[]) {
-  if (!_isDeviceConnected) {
+  if (_advRestartPending && millis() >= instance->_advRestartTime) {
+    BLE_DEBUG_PRINTLN("SerialBLEInterface: restarting advertising at %d", millis());
+    startAdv();
+    _advRestartPending = false;
+  }
+  if (!_isDeviceConnected || !bleuart.notifyEnabled() || !Bluefruit.connected()) {
+    clearBuffers();
     return 0;
   }
   if (send_queue_len > 0   // first, check send queue
