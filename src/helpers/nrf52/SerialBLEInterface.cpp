@@ -8,11 +8,11 @@ void SerialBLEInterface::onConnect(uint16_t connection_handle) {
 }
 
 void SerialBLEInterface::onDisconnect(uint16_t connection_handle, uint8_t reason) {
-  BLE_DEBUG_PRINTLN("SerialBLEInterface: disconnected reason=%d", reason);
+  BLE_DEBUG_PRINTLN("SerialBLEInterface: handle=%d, disconnected reason=%d", connection_handle, reason);
   if(instance){
     instance->_isDeviceConnected = false;
-    instance-> clearBuffers(); // clear any queued frames
-    delay(200); // don't start advertising too quickly after disconnect
+    // instance->bleuart.flush(); // flush bleuart rx fifo
+    // instance->clearBuffers(); // clear any queued frames
     instance->startAdv();
   }
 }
@@ -168,6 +168,9 @@ bool SerialBLEInterface::isWriteBusy() const {
 }
 
 size_t SerialBLEInterface::checkRecvFrame(uint8_t dest[]) {
+  if (!_isDeviceConnected) {
+    return 0;
+  }
   if (send_queue_len > 0   // first, check send queue
     && millis() >= _last_write + BLE_WRITE_MIN_INTERVAL    // space the writes apart
   ) {
