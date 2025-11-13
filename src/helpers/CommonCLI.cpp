@@ -207,8 +207,14 @@ void CommonCLI::handleCommand(uint32_t sender_timestamp, char* command, char* re
         strcpy(reply, "ERR: clock cannot go backwards");
       }
     } else if (memcmp(command, "start ota", 9) == 0) {
+      #if defined(NRF52_PLATFORM) && defined(BLE_PIN_CODE) // board.startOTAUpdate fails if BLE is already set up, so reboot straight to OTA DFU mode
+          Serial.println(" -> Booting to AdaDFU mode for OTA in 5 seconds...");
+          delay(5000);
+          NRF_POWER->GPREGRET = 0xA8;
+          NVIC_SystemReset();
+      #endif
       if (!_board->startOTAUpdate(_prefs->node_name, reply)) {
-        strcpy(reply, "Error");
+        strcpy(reply, "Erro r");
       }
     } else if (memcmp(command, "clock", 5) == 0) {
       uint32_t now = getRTCClock()->getCurrentTime();
@@ -798,6 +804,12 @@ void CommonCLI::handleSetCmd(uint32_t sender_timestamp, char* command, char* rep
       }
     }
   #endif
+  #ifdef BLE_PIN_CODE
+    } else if (memcmp(config, "ble.enabled ", 12) == 0) {
+      bool enable = memcmp(&config[12], "on", 2) == 0;
+      _callbacks->enableBLE(enable);
+      strcpy(reply, "OK");
+  #endif
   } else {
     strcpy(reply, "unknown config: ");
     StrHelper::strncpy(&reply[16], config, 160-17);
@@ -943,6 +955,10 @@ void CommonCLI::handleGetCmd(uint32_t sender_timestamp, char* command, char* rep
   #else
       strcpy(reply, "Error: unsupported");
   #endif
+#ifdef BLE_PIN_CODE
+  } else if (memcmp(config, "ble.enabled", 11) == 0) {
+    sprintf(reply, "> %s", _callbacks->isSerialEnabled() ? "on" : "off");
+#endif
   } else if (memcmp(config, "adc.multiplier", 14) == 0) {
     float adc_mult = _board->getAdcMultiplier();
     if (adc_mult == 0.0f) {

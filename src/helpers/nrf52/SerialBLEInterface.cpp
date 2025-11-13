@@ -296,30 +296,50 @@ size_t SerialBLEInterface::writeFrame(const uint8_t src[], size_t len) {
 }
 
 size_t SerialBLEInterface::checkRecvFrame(uint8_t dest[]) {
+  const uint8_t MAX_CHUNK = 247; // max chunk is MTU - 3 bytes for ATT header (bleuart.getMtu() - 3;)
   if (send_queue_len > 0) {
     if (!isConnected()) {
       BLE_DEBUG_PRINTLN("writeBytes: connection invalid, clearing send queue");
       send_queue_len = 0;
+      _send_offset = 0;
     } else {
       unsigned long now = millis();
       bool throttle_active = (_last_retry_attempt > 0 && (now - _last_retry_attempt) < BLE_RETRY_THROTTLE_MS);
 
       if (!throttle_active) {
-        Frame frame_to_send = send_queue[0];
+        Frame &frame_to_send = send_queue[0];
 
-        size_t written = bleuart.write(frame_to_send.buf, frame_to_send.len);
-        if (written == frame_to_send.len) {
-          BLE_DEBUG_PRINTLN("writeBytes: sz=%u, hdr=%u", (unsigned)frame_to_send.len, (unsigned)frame_to_send.buf[0]);
+        // Calculate chunk size based on remaining bytes
+        size_t bytes_left = frame_to_send.len - _send_offset;
+        size_t chunk_size = (bytes_left > MAX_CHUNK) ? MAX_CHUNK : bytes_left;
+
+        size_t written = bleuart.write(&frame_to_send.buf[_send_offset], chunk_size);
+        if (written == chunk_size) {
+          BLE_DEBUG_PRINTLN("writeBytes: sz=%u, hdr=%u, offset=%d", written, (unsigned)frame_to_send.buf[0], _send_offset);
+          _send_offset += written;
           _last_retry_attempt = 0;
-          shiftSendQueueLeft();
+          if (_send_offset >= frame_to_send.len) {
+            BLE_DEBUG_PRINTLN("frame complete: total=%u", (unsigned)frame_to_send.len);
+            _send_offset = 0;
+            shiftSendQueueLeft();
+          }
+          
         } else if (written > 0) {
-          BLE_DEBUG_PRINTLN("writeBytes: partial write, sent=%u of %u, dropping corrupted frame", (unsigned)written, (unsigned)frame_to_send.len);
+          // Partial chunk write - advance by what was sent
+          BLE_DEBUG_PRINTLN("writeBytes: partial chunk, sent=%u of %u", (unsigned)written, (unsigned)chunk_size);
+          _send_offset += written;
           _last_retry_attempt = 0;
-          shiftSendQueueLeft();
+
+          if (_send_offset >= frame_to_send.len) {
+            BLE_DEBUG_PRINTLN("frame complete: total=%u", (unsigned)frame_to_send.len);
+            _send_offset = 0;
+            shiftSendQueueLeft();
+          }
         } else {
           if (!isConnected()) {
             BLE_DEBUG_PRINTLN("writeBytes failed: connection lost, dropping frame");
             _last_retry_attempt = 0;
+            _send_offset = 0;
             shiftSendQueueLeft();
           } else {
             BLE_DEBUG_PRINTLN("writeBytes failed (buffer full), keeping frame for retry");
@@ -404,3 +424,47 @@ bool SerialBLEInterface::isConnected() const {
 bool SerialBLEInterface::isWriteBusy() const {
   return send_queue_len >= (FRAME_QUEUE_SIZE * 2 / 3);
 }
+
+#ifdef BLE_PIN_CODE
+static BLEDfu bledfu;
+bool SerialBLEInterface::startOTAUpdate(const char* id, char reply[]) {
+  disable();
+  Bluefruit.configPrphBandwidth(BANDWIDTH_MAX);
+  Bluefruit.configPrphConn(92, BLE_GAP_EVENT_LENGTH_MIN, 16, 16);
+
+  Bluefruit.begin(1, 0);
+  // Set max power. Accepted values are: -40, -30, -20, -16, -12, -8, -4, 0, 4
+  Bluefruit.setTxPower(4);
+  // Set the BLE device name
+  Bluefruit.setName("ProMicro_OTA");
+
+  Bluefruit.Periph.setConnectCallback(onConnect);
+  Bluefruit.Periph.setDisconnectCallback(onDisconnect);
+
+  // To be consistent OTA DFU should be added first if it exists
+  bledfu.begin();
+
+  // Set up and start advertising
+  // Advertising packet
+  Bluefruit.Advertising.addFlags(BLE_GAP_ADV_FLAGS_LE_ONLY_GENERAL_DISC_MODE);
+  Bluefruit.Advertising.addTxPower();
+  Bluefruit.Advertising.addName();
+
+  /* Start Advertising
+    - Enable auto advertising if disconnected
+    - Interval:  fast mode = 20 ms, slow mode = 152.5 ms
+    - Timeout for fast mode is 30 seconds
+    - Start(timeout) with timeout = 0 will advertise forever (until connected)
+
+    For recommended advertising interval
+    https://developer.apple.com/library/content/qa/qa1931/_index.html
+  */
+  Bluefruit.Advertising.restartOnDisconnect(true);
+  Bluefruit.Advertising.setInterval(32, 244); // in unit of 0.625 ms
+  Bluefruit.Advertising.setFastTimeout(30);   // number of seconds in fast mode
+  Bluefruit.Advertising.start(0);             // 0 = Don't stop advertising after n seconds
+
+  strcpy(reply, "OK - started");
+  return true;
+}
+#endif

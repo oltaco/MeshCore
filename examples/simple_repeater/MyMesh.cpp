@@ -469,10 +469,18 @@ const char *MyMesh::getLogDateTime() {
 
 void MyMesh::logRxRaw(float snr, float rssi, const uint8_t raw[], int len) {
 #if MESH_PACKET_LOGGING
-  Serial.print(getLogDateTime());
-  Serial.print(" RAW: ");
-  mesh::Utils::printHex(Serial, raw, len);
-  Serial.println();
+  char logMessage[600];  // DateTime (23) + " RAW: " (6) + hex data (254*2=508) + null = ~537, round up to 600
+  int offset = snprintf(logMessage, sizeof(logMessage), "%s RAW: ", getLogDateTime());
+  
+  char hexStr[len * 2 + 1];
+  mesh::Utils::toHex(hexStr, raw, len);
+  offset += snprintf(logMessage + offset, sizeof(logMessage) - offset, "%s", hexStr);
+  snprintf(logMessage + offset, sizeof(logMessage) - offset, "\n");
+
+  Serial.print(logMessage);
+  if (_serial->isConnected()) {
+    _serial->writeFrame((const uint8_t*)logMessage, strlen(logMessage));
+  }
 #endif
 }
 
@@ -480,6 +488,35 @@ void MyMesh::logRx(mesh::Packet *pkt, int len, float score) {
 #ifdef WITH_BRIDGE
   if (_prefs.bridge_pkt_src == 1) {
     bridge.sendPacket(pkt);
+  }
+#endif
+#if MESH_PACKET_LOGGING
+  char logMessage[200];
+  uint32_t air_time = _radio->getEstAirtimeFor(len);
+  
+  int offset = snprintf(logMessage, sizeof(logMessage), 
+                       "%s: RX, len=%d (type=%d, route=%s, payload_len=%d) SNR=%d RSSI=%d score=%d time=%d hash=", 
+                       getLogDateTime(), len, pkt->getPayloadType(), 
+                       pkt->isRouteDirect() ? "D" : "F", pkt->payload_len,
+                       (int)pkt->getSNR(), (int)_radio->getLastRSSI(), (int)(score*1000), air_time);
+
+  static uint8_t packet_hash[MAX_HASH_SIZE];
+  pkt->calculatePacketHash(packet_hash);
+  
+  char hashStr[MAX_HASH_SIZE * 2 + 1];
+  mesh::Utils::toHex(hashStr, packet_hash, MAX_HASH_SIZE);
+  offset += snprintf(logMessage + offset, sizeof(logMessage) - offset, "%s", hashStr);
+
+  if (pkt->getPayloadType() == PAYLOAD_TYPE_PATH || pkt->getPayloadType() == PAYLOAD_TYPE_REQ
+      || pkt->getPayloadType() == PAYLOAD_TYPE_RESPONSE || pkt->getPayloadType() == PAYLOAD_TYPE_TXT_MSG) {
+    offset += snprintf(logMessage + offset, sizeof(logMessage) - offset, " [%02X -> %02X]", 
+            (uint32_t)pkt->payload[1], (uint32_t)pkt->payload[0]);
+  }
+  snprintf(logMessage + offset, sizeof(logMessage) - offset, "\n");
+  Serial.print(logMessage);
+  if (_serial->isConnected()) {
+    _serial->writeFrame((const uint8_t*)logMessage, strlen(logMessage));
+    // int len = _serial->checkRecvFrame(cmd_frame);
   }
 #endif
 
@@ -508,6 +545,26 @@ void MyMesh::logTx(mesh::Packet *pkt, int len) {
     bridge.sendPacket(pkt);
   }
 #endif
+#if MESH_PACKET_LOGGING
+  char logMessage[128];
+  int offset = snprintf(logMessage, sizeof(logMessage), "%s: TX, len=%d (type=%d, route=%s, payload_len=%d)", 
+                       getLogDateTime(), len, pkt->getPayloadType(), 
+                       pkt->isRouteDirect() ? "D" : "F", pkt->payload_len);
+  
+  if (pkt->getPayloadType() == PAYLOAD_TYPE_PATH || pkt->getPayloadType() == PAYLOAD_TYPE_REQ
+    || pkt->getPayloadType() == PAYLOAD_TYPE_RESPONSE || pkt->getPayloadType() == PAYLOAD_TYPE_TXT_MSG) {
+    offset += snprintf(logMessage + offset, sizeof(logMessage) - offset, " [%02X -> %02X]", 
+            (uint32_t)pkt->payload[1], (uint32_t)pkt->payload[0]);
+  }
+  
+  snprintf(logMessage + offset, sizeof(logMessage) - offset, "\n");
+  Serial.print(logMessage);
+  if (_serial->isConnected()) {
+    _serial->writeFrame((const uint8_t*)logMessage, strlen(logMessage));
+    // int len = _serial->checkRecvFrame(cmd_frame);
+  }
+#endif
+
 
   if (_logging) {
     File f = openAppend(PACKET_LOG_FILE);
@@ -994,6 +1051,11 @@ void MyMesh::begin(FILESYSTEM *fs) {
 #endif
 }
 
+void MyMesh::startInterface(BaseSerialInterface &serial) {
+  _serial = &serial;
+  serial.enable();
+}
+
 void MyMesh::sendFloodScoped(const TransportKey& scope, mesh::Packet* pkt, uint32_t delay_millis, uint8_t path_hash_size) {
   if (scope.isNull()) {
     sendFlood(pkt, delay_millis, path_hash_size);
@@ -1142,6 +1204,28 @@ void MyMesh::removeNeighbor(const uint8_t *pubkey, int key_len) {
 #endif
 }
 
+void MyMesh::checkSerialInterface() {
+  if (_serial && _serial->isConnected()) {
+    int len = _serial->checkRecvFrame(cmd_frame);
+    if (len > 0) {
+      while (len > 0 && (cmd_frame[len - 1] == '\r' || cmd_frame[len - 1] == '\n' || cmd_frame[len - 1] == ' ')) {
+        cmd_frame[--len] = 0;
+      }      
+      Serial.printf("BLE CMD len=%d\n", len);
+      char reply[512];
+      _cli.handleCommand(0, (char *)cmd_frame, reply);
+      // handleCommand(0, (char *)cmd_frame, reply);
+      int reply_len = strlen(reply);
+      if (reply_len > 0) {
+        // _serial->writeFrame((const uint8_t *)reply, reply_len);
+        char prefixed_reply[520]; // a bit larger to fit prefix safely
+        snprintf(prefixed_reply, sizeof(prefixed_reply), "  -> %s", reply);
+        _serial->writeFrame((const uint8_t *)prefixed_reply, strlen(prefixed_reply));
+      }
+    }
+  }
+}
+
 void MyMesh::startRegionsLoad() {
   temp_map.resetFrom(region_map);   // rebuild regions in a temp instance
   memset(load_stack, 0, sizeof(load_stack));
@@ -1284,10 +1368,24 @@ void MyMesh::handleCommand(uint32_t sender_timestamp, char *command, char *reply
   }
 }
 
+// bool MyMesh::isSerialEnabled() {
+//   return _serial && _serial->isEnabled();
+// }
+
+// void MyMesh::enableBLE(bool enable) {
+//   if (enable && isSerialEnabled() == false) {
+//     _serial->enable();
+//   } else if (!enable && _serial->isEnabled()) {
+//     _serial->disable();
+//   }
+// }
+
 void MyMesh::loop() {
 #ifdef WITH_BRIDGE
   bridge.loop();
 #endif
+
+  checkSerialInterface();
 
   mesh::Mesh::loop();
 

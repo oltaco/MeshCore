@@ -5,6 +5,10 @@
 #include <RTClib.h>
 #include <target.h>
 
+#ifndef BLE_NAME_PREFIX
+#define BLE_NAME_PREFIX "MeshRep-"
+#endif
+
 #if defined(NRF52_PLATFORM) || defined(STM32_PLATFORM)
   #include <InternalFileSystem.h>
 #elif defined(RP2040_PLATFORM)
@@ -36,6 +40,7 @@
 #include <helpers/RegionMap.h>
 #include <helpers/RoutingPolicy.h>
 #include "RateLimiter.h"
+#include <helpers/BaseSerialInterface.h>
 
 #ifdef WITH_BRIDGE
 extern AbstractBridge* bridge;
@@ -127,9 +132,15 @@ class MyMesh : public mesh::Mesh, public CommonCLICallbacks {
   uint8_t handleAnonClockReq(const mesh::Identity& sender, uint32_t sender_timestamp, const uint8_t* data);
   int handleRequest(ClientInfo* sender, uint32_t sender_timestamp, uint8_t* payload, size_t payload_len);
   mesh::Packet* createSelfAdvert();
+  void checkSerialInterface();
 
   File openAppend(const char* fname);
   bool isLooped(const mesh::Packet* packet, const uint8_t max_counters[]);
+  uint8_t out_frame[MAX_FRAME_SIZE + 1];
+  uint8_t cmd_frame[MAX_FRAME_SIZE + 1];
+
+private:
+  BaseSerialInterface* _serial;
 
 protected:
   float getAirtimeBudgetFactor() const override {
@@ -183,6 +194,7 @@ public:
   MyMesh(mesh::MainBoard& board, mesh::Radio& radio, mesh::MillisecondClock& ms, mesh::RNG& rng, mesh::RTCClock& rtc, mesh::MeshTables& tables);
 
   void begin(FILESYSTEM* fs);
+  void startInterface(BaseSerialInterface &serial);
   void sendNodeDiscoverReq();
   const char* getFirmwareVer() override { return FIRMWARE_VERSION; }
   const char* getBuildDate() override { return FIRMWARE_BUILD_DATE; }
@@ -258,5 +270,14 @@ public:
   #if defined(USE_LR2021)
   virtual bool configSideDetectors(const uint8_t sideDetSFs[], uint8_t num, float bw) override;
   #endif
-
+#if defined(BLE_PIN_CODE)
+  bool isSerialEnabled() const override { return _serial->isEnabled(); }
+  void enableBLE(bool enable) override {
+    if (enable && isSerialEnabled() == false) {
+      _serial->enable();
+    } else if (!enable && _serial->isEnabled()) {
+      _serial->disable();
+    }
+  };
+#endif
 };

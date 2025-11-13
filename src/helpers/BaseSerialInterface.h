@@ -2,7 +2,7 @@
 
 #include <Arduino.h>
 
-#define MAX_FRAME_SIZE  176   // +4 for transport codes (region scoping)
+#define MAX_FRAME_SIZE  400
 
 class BaseSerialInterface {
 protected:

@@ -247,6 +247,13 @@ public:
     return false; // Override in wrapper
   } 
   #endif
+  virtual bool isSerialEnabled() const {
+    // no op by default
+  };
+  virtual void enableBLE(bool enable) {
+    // no op by default
+  };
+
 };
 
 class CommonCLI {

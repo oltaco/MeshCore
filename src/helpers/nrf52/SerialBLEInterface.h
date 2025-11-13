@@ -17,7 +17,7 @@ class SerialBLEInterface : public BaseSerialInterface {
   unsigned long _last_retry_attempt;
 
   struct Frame {
-    uint8_t len;
+    size_t len;
     uint8_t buf[MAX_FRAME_SIZE];
   };
 
@@ -25,7 +25,8 @@ class SerialBLEInterface : public BaseSerialInterface {
   
   uint8_t send_queue_len;
   Frame send_queue[FRAME_QUEUE_SIZE];
-  
+  size_t _send_offset = 0;  // for chunked BLE writes
+
   uint8_t recv_queue_len;
   Frame recv_queue[FRAME_QUEUE_SIZE];
 
@@ -61,6 +62,10 @@ public:
    */
   void begin(const char* prefix, char* name, uint32_t pin_code);
 
+  #ifdef BLE_PIN_CODE
+  bool startOTAUpdate(const char* id, char reply[]);
+  #endif
+  void begin(const char* device_name, uint32_t pin_code);
   void disconnect();
   void enable() override;
   void disable() override;

@@ -3,6 +3,14 @@
 
 #include "MyMesh.h"
 
+#if defined(BLE_PIN_CODE)
+    #include <helpers/nrf52/SerialBLEInterface.h>
+    SerialBLEInterface serial_interface;
+#else
+    #include <helpers/ArduinoSerialInterface.h>
+    ArduinoSerialInterface serial_interface;
+#endif
+
 #ifdef DISPLAY_CLASS
   #include "UITask.h"
   static UITask ui_task(board, display);
@@ -112,6 +120,13 @@ void setup() {
 
 #ifdef ETHERNET_ENABLED
   ethernet_start_task();
+#endif
+
+#ifdef BLE_PIN_CODE
+  char dev_name[32+16];
+  sprintf(dev_name, "%s", the_mesh.getNodeName());
+  serial_interface.begin(BLE_NAME_PREFIX, dev_name, BLE_PIN_CODE);
+  the_mesh.startInterface(serial_interface);
 #endif
 
   // send out initial zero hop Advertisement to the mesh
