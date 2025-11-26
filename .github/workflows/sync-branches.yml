@@ -1,0 +1,47 @@
+name: Sync Fork from Upstream
+
+on:
+  schedule:
+    - cron: '30 14 * * *'
+  workflow_dispatch:
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Fetch all remote branches
+        run: |
+          git fetch origin +refs/heads/*:refs/remotes/origin/* --prune
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Add upstream remote
+        run: |
+          git remote add upstream https://github.com/meshcore-dev/MeshCore.git
+          git fetch upstream --tags
+
+      - name: Sync main branch
+        run: |
+          git checkout -B main origin/main
+          git merge upstream/main --ff-only
+          git push origin main
+
+      - name: Sync dev branch
+        run: |
+          git checkout -B dev origin/dev
+          git merge upstream/dev --ff-only
+          git push origin dev
+
+      - name: Sync tags
+        run: |
+          git push origin --tags
