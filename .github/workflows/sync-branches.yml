@@ -3,6 +3,7 @@ name: Sync Fork from Upstream
 on:
   schedule:
     - cron: '30 14 * * *'
+    - cron: '15 3 * * *' # temporarily run for testing purposes
   workflow_dispatch:
 
 jobs:
