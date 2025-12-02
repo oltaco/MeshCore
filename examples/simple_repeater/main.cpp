@@ -8,6 +8,10 @@
   static UITask ui_task(display);
 #endif
 
+#if defined(NRF52_PLATFORM) && defined(ENABLE_WATCHDOG)
+  #include <helpers/nrf52/WatchdogTimer.h>
+#endif
+
 StdRNG fast_rng;
 SimpleMeshTables tables;
 
@@ -76,6 +80,10 @@ void setup() {
 
   the_mesh.begin(fs);
 
+  #if defined(NRF52_PLATFORM) && defined(ENABLE_WATCHDOG)
+    Watchdog::begin();
+  #endif
+
 #ifdef DISPLAY_CLASS
   ui_task.begin(the_mesh.getNodePrefs(), FIRMWARE_BUILD_DATE, FIRMWARE_VERSION);
 #endif
@@ -117,4 +125,7 @@ void loop() {
   ui_task.loop();
 #endif
   rtc_clock.tick();
+#if defined(NRF52_PLATFORM) && defined(ENABLE_WATCHDOG)
+  Watchdog::feed();
+#endif
 }
