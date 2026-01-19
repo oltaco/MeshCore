@@ -71,6 +71,7 @@ static uint32_t _atoi(const char* sp) {
     ArduinoSerialInterface serial_interface;
   #endif
 #elif defined(NRF52_PLATFORM)
+#include <helpers/nrf52/CrashRecovery.cpp>
   #ifdef BLE_PIN_CODE
     #include <helpers/nrf52/SerialBLEInterface.h>
     SerialBLEInterface serial_interface;
@@ -78,7 +79,7 @@ static uint32_t _atoi(const char* sp) {
     #include <helpers/ArduinoSerialInterface.h>
     ArduinoSerialInterface serial_interface;
   #endif
-#elif defined(STM32_PLATFORM)
+  #elif defined(STM32_PLATFORM)
   #include <helpers/ArduinoSerialInterface.h>
   ArduinoSerialInterface serial_interface;
 #else
@@ -126,9 +127,30 @@ void setup() {
   if (!radio_init()) { halt(); }
 
   fast_rng.begin(radio_get_rng_seed());
-
+#if defined(NRF52_PLATFORM)
+  // force early debug output, remove after debugging!
+  while (!Serial) {
+    delay(10);
+    if (millis() > 7000) {
+      break;
+    }
+  }
+  MESH_DEBUG_PRINTLN("Starting crash recovery...");
+  #if defined(QSPIFLASH)
+    crashRecovery(InternalFS, QSPIFlash);
+  #elif defined(EXTRAFS)
+    crashRecovery(InternalFS, ExtraFS);
+  #endif
+  MESH_DEBUG_PRINTLN("CrashRecovery done.");
+#endif
 #if defined(NRF52_PLATFORM) || defined(STM32_PLATFORM)
+  #if defined(NRF_PLATFORM)
+  setFSOpCode(OP_USERDATA_MOUNT);
+  #endif
   InternalFS.begin();
+  #if defined(NRF_PLATFORM)
+  setFSOpCode(OP_IDLE);
+  #endif
   #if defined(QSPIFLASH)
     if (!QSPIFlash.begin()) {
       // debug output might not be available at this point, might be too early. maybe should fall back to InternalFS here?
@@ -138,7 +160,15 @@ void setup() {
     }
   #else
   #if defined(EXTRAFS)
+      MESH_DEBUG_PRINTLN("ExtraFS: initializing...");
+      #if defined(NRF_PLATFORM)
+      setFSOpCode(OP_CONTACTFS_MOUNT);
+      #endif
       ExtraFS.begin();
+      #if defined(NRF_PLATFORM)
+      setFSOpCode(OP_IDLE);
+      #endif
+      MESH_DEBUG_PRINTLN("ExtraFS: initialized");
   #endif
   #endif
   store.begin();
@@ -219,6 +249,8 @@ void setup() {
 #ifdef DISPLAY_CLASS
   ui_task.begin(disp, &sensors, the_mesh.getNodePrefs());  // still want to pass this in as dependency, as prefs might be moved
 #endif
+setFSOpCode(OP_IDLE);
+// setCrashCount(0);
 }
 
 void loop() {

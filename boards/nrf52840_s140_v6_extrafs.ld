@@ -14,7 +14,7 @@ MEMORY
    * - Concurrent connection peripheral + central + secure links
    * - Event Len, HVN queue, Write CMD queue
    */ 
-  RAM (rwx) :  ORIGIN = 0x20006000, LENGTH = 0x20040000 - 0x20006000
+  RAM (rwx) : ORIGIN = 0x20006080, LENGTH = 0x20040000 - 0x20006080
 }
 
 SECTIONS
@@ -33,6 +33,16 @@ SECTIONS
     KEEP(*(.fs_data))
     PROVIDE(__stop_fs_data = .);
   } > RAM
+
+  .noinit (NOLOAD) :
+  {
+      . = ALIGN(4);
+      __noinit_start__ = .;
+      KEEP(*(.noinit))
+      . = . + 128;
+      __noinit_end__ = .;
+  } > RAM 
+
 } INSERT AFTER .data;
 
 INCLUDE "nrf52_common.ld"

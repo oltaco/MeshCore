@@ -1,5 +1,6 @@
 #include <Arduino.h>
 #include "DataStore.h"
+#include <helpers/nrf52/CrashRecovery.h>
 
 #if defined(EXTRAFS) || defined(QSPIFLASH)
   #define MAX_BLOBRECS 100
@@ -53,9 +54,13 @@ void DataStore::begin() {
 
 #if defined(NRF52_PLATFORM) || defined(STM32_PLATFORM)
   _ContactsChannelsTotalBlocks = _getContactsChannelsFS()->_getFS()->cfg->block_count;
+  MESH_DEBUG_PRINTLN("checkAdvBlobFile() starting...");
   checkAdvBlobFile();
+  MESH_DEBUG_PRINTLN("checkAdvBlobFile() done.");
   #if defined(EXTRAFS) || defined(QSPIFLASH)
+  MESH_DEBUG_PRINTLN("migrateToSecondaryFS() starting...");
   migrateToSecondaryFS();
+  MESH_DEBUG_PRINTLN("migrateToSecondaryFS() done.");
   #endif
 #else
   // init 'blob store' support
@@ -127,9 +132,11 @@ uint32_t DataStore::getStorageTotalKb() const {
   _fs->info(info);
   return info.totalBytes / 1024;
 #elif defined(NRF52_PLATFORM) || defined(STM32_PLATFORM)
+  MESH_DEBUG_PRINTLN("getStorageTotalKb()...");
   const lfs_config* config = _getContactsChannelsFS()->_getFS()->cfg;
   int totalBytes = config->block_size * config->block_count;
   return totalBytes / 1024;
+  MESH_DEBUG_PRINTLN("getStorageTotalKb() done.");
 #else
   return 0;
 #endif
@@ -137,6 +144,7 @@ uint32_t DataStore::getStorageTotalKb() const {
 
 File DataStore::openRead(const char* filename) {
 #if defined(NRF52_PLATFORM) || defined(STM32_PLATFORM)
+  MESH_DEBUG_PRINTLN("DataStore::openRead(%s)", filename);
   return _fs->open(filename, FILE_O_READ);
 #elif defined(RP2040_PLATFORM)
   return _fs->open(filename, "r");
@@ -147,6 +155,7 @@ File DataStore::openRead(const char* filename) {
 
 File DataStore::openRead(FILESYSTEM* fs, const char* filename) {
 #if defined(NRF52_PLATFORM) || defined(STM32_PLATFORM)
+  MESH_DEBUG_PRINTLN("DataStore::openRead(%s)", filename);
   return fs->open(filename, FILE_O_READ);
 #elif defined(RP2040_PLATFORM)
   return fs->open(filename, "r");
@@ -269,7 +278,8 @@ void DataStore::savePrefs(const NodePrefs& _prefs, double node_lat, double node_
 }
 
 void DataStore::loadContacts(DataStoreHost* host) {
-File file = openRead(_getContactsChannelsFS(), "/contacts3");
+  setFSOpCode(OP_CONTACTS_READ);
+  File file = openRead(_getContactsChannelsFS(), "/contacts3");
     if (file) {
       bool full = false;
       while (!full) {
@@ -296,7 +306,9 @@ File file = openRead(_getContactsChannelsFS(), "/contacts3");
         if (!host->onContactLoaded(c)) full = true;
       }
       file.close();
+      setFSOpCode(OP_IDLE);
     }
+  }
 }
 
 void DataStore::saveContacts(DataStoreHost* host) {
@@ -329,7 +341,8 @@ void DataStore::saveContacts(DataStoreHost* host) {
 }
 
 void DataStore::loadChannels(DataStoreHost* host) {
-    File file = openRead(_getContactsChannelsFS(), "/channels2");
+  setFSOpCode(OP_CHANNELS_READ);
+  File file = openRead(_getContactsChannelsFS(), "/channels2");
     if (file) {
       bool full = false;
       uint8_t channel_idx = 0;
@@ -350,7 +363,9 @@ void DataStore::loadChannels(DataStoreHost* host) {
         }
       }
       file.close();
+      setFSOpCode(OP_IDLE);
     }
+  }
 }
 
 void DataStore::saveChannels(DataStoreHost* host) {
@@ -385,8 +400,10 @@ struct BlobRec {
 };
 
 void DataStore::checkAdvBlobFile() {
+  // setFSOpCode(OP_ADV_BLOBS_READ); // set before exists() call, it's not a read but there is still the possibility of a crash if the metadata is corrupt
   if (!_getContactsChannelsFS()->exists("/adv_blobs")) {
-    File file = openWrite(_getContactsChannelsFS(), "/adv_blobs");
+    setFSOpCode(OP_ADV_BLOBS_WRITE);
+    File file = _getContactsChannelsFS()->open("/adv_blobs", FILE_O_WRITE);
     if (file) {
       BlobRec zeroes;
       memset(&zeroes, 0, sizeof(zeroes));
@@ -396,6 +413,7 @@ void DataStore::checkAdvBlobFile() {
       file.close();
     }
   }
+  setFSOpCode(OP_IDLE);
 }
 
 void DataStore::migrateToSecondaryFS() {
@@ -403,6 +421,7 @@ void DataStore::migrateToSecondaryFS() {
   if (!_fsExtra->exists("/adv_blobs")) {
     if (_fs->exists("/adv_blobs")) {
     File oldAdvBlobs = openRead(_fs, "/adv_blobs");
+    setFSOpCode(OP_ADV_BLOBS_WRITE);
     File newAdvBlobs = openWrite(_fsExtra, "/adv_blobs");
 
     if (oldAdvBlobs && newAdvBlobs) {
@@ -418,6 +437,7 @@ void DataStore::migrateToSecondaryFS() {
     }
     if (oldAdvBlobs) oldAdvBlobs.close();
     if (newAdvBlobs) newAdvBlobs.close();
+    setFSOpCode(OP_IDLE);
     _fs->remove("/adv_blobs");
     }
   }
@@ -438,6 +458,7 @@ void DataStore::migrateToSecondaryFS() {
       _fs->remove("/contacts3");
     }
   }
+  MESH_DEBUG_PRINTLN("%d checking ExtraFS/channels2", millis());
   if (!_fsExtra->exists("/channels2")) {
     if (_fs->exists("/channels2")) {
       File oldFile = openRead(_fs, "/channels2");
@@ -456,6 +477,7 @@ void DataStore::migrateToSecondaryFS() {
     }
   }
   // cleanup nodes which have been testing the extra fs, copy _main.id and new_prefs back to primary
+  MESH_DEBUG_PRINTLN("%d checking UserData/_main.id", millis());
   if (_fsExtra->exists("/_main.id")) {
       if (_fs->exists("/_main.id")) {_fs->remove("/_main.id");}
       File oldFile = openRead(_fsExtra, "/_main.id");
@@ -472,6 +494,7 @@ void DataStore::migrateToSecondaryFS() {
       if (newFile) newFile.close();
       _fsExtra->remove("/_main.id");
   }
+  MESH_DEBUG_PRINTLN("%d checking ExtraFS/new_prefs", millis());
   if (_fsExtra->exists("/new_prefs")) {
     if (_fs->exists("/new_prefs")) {_fs->remove("/new_prefs");}
       File oldFile = openRead(_fsExtra, "/new_prefs");
@@ -489,6 +512,7 @@ void DataStore::migrateToSecondaryFS() {
       _fsExtra->remove("/new_prefs");
   }
   // remove files from where they should not be anymore
+  MESH_DEBUG_PRINTLN("%d cleaning up old files", millis());
   if (_fs->exists("/adv_blobs")) {
     _fs->remove("/adv_blobs");
   }
@@ -504,9 +528,12 @@ void DataStore::migrateToSecondaryFS() {
   if (_fsExtra->exists("/new_prefs")) {
     _fsExtra->remove("/new_prefs");
   }
+  MESH_DEBUG_PRINTLN("%d migrateToSecondaryFS() done.", millis());
 }
 
 uint8_t DataStore::getBlobByKey(const uint8_t key[], int key_len, uint8_t dest_buf[]) {
+  MESH_DEBUG_PRINTLN("DataStore::getBlobByKey()...");
+  setFSOpCode(OP_ADV_BLOBS_READ);
   File file = openRead(_getContactsChannelsFS(), "/adv_blobs");
   uint8_t len = 0;  // 0 = not found
   if (file) {
@@ -519,6 +546,7 @@ uint8_t DataStore::getBlobByKey(const uint8_t key[], int key_len, uint8_t dest_b
       }
     }
     file.close();
+    setFSOpCode(OP_IDLE);
   }
   return len;
 }
@@ -526,6 +554,7 @@ uint8_t DataStore::getBlobByKey(const uint8_t key[], int key_len, uint8_t dest_b
 bool DataStore::putBlobByKey(const uint8_t key[], int key_len, const uint8_t src_buf[], uint8_t len) {
   if (len < PUB_KEY_SIZE+4+SIGNATURE_SIZE || len > MAX_ADVERT_PKT_LEN) return false;
   checkAdvBlobFile();
+  setFSOpCode(OP_ADV_BLOBS_WRITE);
   File file = _getContactsChannelsFS()->open("/adv_blobs", FILE_O_WRITE);
   if (file) {
     uint32_t pos = 0, found_pos = 0;
@@ -556,6 +585,7 @@ bool DataStore::putBlobByKey(const uint8_t key[], int key_len, const uint8_t src
     file.write((uint8_t *) &tmp, sizeof(tmp));
 
     file.close();
+    setFSOpCode(OP_IDLE);
     return true;
   }
   return false; // error
