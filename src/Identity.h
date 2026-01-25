@@ -49,6 +49,7 @@ public:
 */
 class LocalIdentity : public Identity {
   uint8_t prv_key[PRV_KEY_SIZE];
+  uint8_t prv_seed[SEED_SIZE];
 public:
   LocalIdentity();
   LocalIdentity(const char* prv_hex, const char* pub_hex);
@@ -82,6 +83,14 @@ public:
    * \returns true, if the private key is valid for login.
   */
   static bool validatePrivateKey(const uint8_t prv[64]);
+
+  /**
+   * \brief  Derives a private key from a given seed.
+   * \param  seed IN - the seed to derive from (must be SEED_SIZE bytes)
+   * \param  prv_key OUT - the derived private key (must be PRV_KEY_SIZE bytes)
+   * \returns true, if a valid private key was derived.
+  */
+  static bool privateKeyFromSeed(const uint8_t seed[SEED_SIZE], uint8_t prv_key[PRV_KEY_SIZE]);
 
   bool readFrom(Stream& s);
   bool writeTo(Stream& s) const;

@@ -92,6 +92,18 @@ bool LocalIdentity::validatePrivateKey(const uint8_t prv[64]) {
     return false;
 }
 
+bool LocalIdentity::privateKeyFromSeed(const uint8_t seed[SEED_SIZE], uint8_t prv_key[PRV_KEY_SIZE]) {
+  uint8_t pub_key[PUB_KEY_SIZE];
+    ed25519_create_keypair(pub_key, prv_key, seed);
+    if (!validatePrivateKey(prv_key)) {
+        return false;
+    }
+    return true;
+}
+
+
+
+
 bool LocalIdentity::readFrom(Stream& s) {
   bool success = (s.readBytes(pub_key, PUB_KEY_SIZE) == PUB_KEY_SIZE);
   success = success && (s.readBytes(prv_key, PRV_KEY_SIZE) == PRV_KEY_SIZE);

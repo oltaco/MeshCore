@@ -456,6 +456,19 @@ void CommonCLI::handleCommand(uint32_t sender_timestamp, const char* command, ch
         } else {
           strcpy(reply, "Error, bad key");
         }
+      } else if (memcmp(config, "prv.seed ", 9) == 0) {
+        uint8_t prv_seed[SEED_SIZE];
+        uint8_t prv_key[PRV_KEY_SIZE];
+        bool success = mesh::Utils::fromHex(prv_seed, SEED_SIZE, &config[9]);
+        if (success && mesh::LocalIdentity::privateKeyFromSeed(prv_seed, prv_key)) {
+          mesh::LocalIdentity new_id;
+          new_id.readFrom(prv_key, PRV_KEY_SIZE);
+          _callbacks->saveIdentity(new_id);
+          strcpy(reply, "OK, reboot to apply! New pubkey: ");
+          mesh::Utils::toHex(&reply[33], new_id.pub_key, PUB_KEY_SIZE);
+        } else {
+          strcpy(reply, "Error, bad seed");
+        }
       } else if (memcmp(config, "name ", 5) == 0) {
         if (isValidName(&config[5])) {
           StrHelper::strncpy(_prefs->node_name, &config[5], sizeof(_prefs->node_name));
