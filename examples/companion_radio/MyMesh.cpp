@@ -56,6 +56,8 @@
 #define CMD_SEND_ANON_REQ             57
 #define CMD_SET_AUTOADD_CONFIG        58
 #define CMD_GET_AUTOADD_CONFIG        59
+#define CMD_EXPORT_PRIVATE_SEED       60 // placeholder until implemented
+#define CMD_IMPORT_PRIVATE_SEED       61
 
 // Stats sub-types for CMD_GET_STATS
 #define STATS_TYPE_CORE               0
@@ -88,6 +90,7 @@
 #define RESP_CODE_TUNING_PARAMS       23
 #define RESP_CODE_STATS               24   // v8+, second byte is stats type
 #define RESP_CODE_AUTOADD_CONFIG      25
+#define RESP_CODE_PRIVATE_SEED        26 // placeholder until implemented
 
 #define SEND_TIMEOUT_BASE_MILLIS        500
 #define FLOOD_SEND_TIMEOUT_FACTOR       16.0f
@@ -1299,6 +1302,27 @@ void MyMesh::handleCmdFrame(size_t len) {
     } else {
         mesh::LocalIdentity identity;
         identity.readFrom(&cmd_frame[1], 64);
+        if (_store->saveMainIdentity(identity)) {
+          self_id = identity;
+          writeOKFrame();
+          // re-load contacts, to invalidate ecdh shared_secrets
+          resetContacts();
+          _store->loadContacts(this);
+        } else {
+          writeErrFrame(ERR_CODE_FILE_IO_ERROR);
+        }
+    }
+#else
+    writeDisabledFrame();
+#endif
+  } else if (cmd_frame[0] == CMD_IMPORT_PRIVATE_SEED && len >= SEED_SIZE + 1) {
+#if ENABLE_PRIVATE_KEY_IMPORT
+    uint8_t prv_key[PRV_KEY_SIZE];
+    if (!mesh::LocalIdentity::privateKeyFromSeed(&cmd_frame[1], prv_key)) {
+        writeErrFrame(ERR_CODE_ILLEGAL_ARG); // invalid key from seed
+    } else {
+        mesh::LocalIdentity identity;
+        identity.readFrom(prv_key, PRV_KEY_SIZE);
         if (_store->saveMainIdentity(identity)) {
           self_id = identity;
           writeOKFrame();
