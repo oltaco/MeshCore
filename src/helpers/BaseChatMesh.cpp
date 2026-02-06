@@ -69,6 +69,7 @@ void BaseChatMesh::bootstrapRTCfromContacts() {
 
 ContactInfo* BaseChatMesh::allocateContactSlot() {
   if (num_contacts < MAX_CONTACTS) {
+    memset(&contacts[num_contacts], 0, sizeof(ContactInfo));
     return &contacts[num_contacts++];
   } else if (shouldOverwriteWhenFull()) {
     // Find oldest non-favourite contact by oldest lastmod timestamp
@@ -83,6 +84,7 @@ ContactInfo* BaseChatMesh::allocateContactSlot() {
     }
     if (oldest_idx >= 0) {
       onContactOverwrite(contacts[oldest_idx].id.pub_key);
+      memset(&contacts[oldest_idx], 0, sizeof(ContactInfo));
       return &contacts[oldest_idx];
     }
   }
@@ -780,6 +782,7 @@ bool BaseChatMesh::removeContact(ContactInfo& contact) {
     contacts[idx] = contacts[idx + 1];
     idx++;
   }
+  memset(&contacts[num_contacts], 0, sizeof(ContactInfo)); // zero stale contact data from deleted slot
   return true;  // Success
 }
 
