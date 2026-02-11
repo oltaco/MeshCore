@@ -22,18 +22,10 @@ static char command[160];
 // For power saving
 unsigned long lastActive = 0; // mark last active time
 unsigned long nextSleepinSecs = 120; // next sleep in seconds. The first sleep (if enabled) is after 2 minutes from boot
-// HardwareSerial Serial(0);
 
 void setup() {
-  Serial.setPins(SERIAL_RX, SERIAL_TX);
-  // Serial.begin(115200);
-
-  Serial.begin(115200, SERIAL_8N1, SERIAL_RX, SERIAL_TX);
-  while (!Serial){delay(10);}
-
-  delay(5000);
-  Serial.println("=== ALIVE ===");
-  Serial.flush();
+  Serial.begin(115200);
+  delay(1000);
 
   board.begin();
 
