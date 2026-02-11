@@ -57,8 +57,6 @@ bool radio_init() {
   pinMode(P_LORA_NSS_2, OUTPUT);
   digitalWrite(P_LORA_NSS_2, HIGH);
   
-  delay(1300); // wait for LR1121 - maybe tighten this by checking P_LORA_BUSY?
-
   int status = radio.begin(LORA_FREQ, LORA_BW, LORA_SF, LORA_CR, RADIOLIB_LR11X0_LORA_SYNC_WORD_PRIVATE, LORA_TX_POWER, 16, tcxo);
   if (status != RADIOLIB_ERR_NONE) {
     Serial.print("ERROR: radio init failed: ");
