@@ -48,34 +48,18 @@ bool radio_init() {
 #ifdef LR11X0_DIO3_TCXO_VOLTAGE
   float tcxo = LR11X0_DIO3_TCXO_VOLTAGE;
 #else
-  float tcxo = 0.0f;
+  float tcxo = 1.8f;
 #endif
 
   spi.begin(P_LORA_SCLK, P_LORA_MISO, P_LORA_MOSI, P_LORA_NSS);
   
   // Deselect second radio
-  pinMode(7, OUTPUT);
-  digitalWrite(7, HIGH);
+  pinMode(P_LORA_NSS_2, OUTPUT);
+  digitalWrite(P_LORA_NSS_2, HIGH);
   
-  delay(1300);
+  delay(1300); // wait for LR1121 - maybe tighten this by checking P_LORA_BUSY?
 
-
-
-  int status;
-
-  float tcxo_candidates[3] = { tcxo, 1.8f, 3.3f };
-  int tcxo_tries = (fabsf(tcxo) <= 0.001f) ? 3 : 1;
-  float used_tcxo = tcxo;
-  for (int i = 0; i < tcxo_tries; i++) {
-    
-    used_tcxo = tcxo_candidates[i];
-    
-    Serial.print("Attempting radio.begin using tcxo=");
-    Serial.println(used_tcxo);
-    status = radio.begin(LORA_FREQ, LORA_BW, LORA_SF, LORA_CR,
-                         RADIOLIB_LR11X0_LORA_SYNC_WORD_PRIVATE, LORA_TX_POWER, 16, used_tcxo);
-    if (status == RADIOLIB_ERR_NONE) break;
-  }
+  int status = radio.begin(LORA_FREQ, LORA_BW, LORA_SF, LORA_CR, RADIOLIB_LR11X0_LORA_SYNC_WORD_PRIVATE, LORA_TX_POWER, 16, tcxo);
   if (status != RADIOLIB_ERR_NONE) {
     Serial.print("ERROR: radio init failed: ");
     Serial.println(status);
@@ -84,7 +68,6 @@ bool radio_init() {
   
   radio.setCRC(2);
   radio.explicitHeader();
-
   
   radio.setRfSwitchTable(rfswitch_dios, rfswitch_table);
 
