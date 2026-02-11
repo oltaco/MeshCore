@@ -29,13 +29,11 @@ void setup() {
   // Serial.begin(115200);
 
   Serial.begin(115200, SERIAL_8N1, SERIAL_RX, SERIAL_TX);
+  while (!Serial){delay(10);}
 
-  delay(100);
+  delay(5000);
   Serial.println("=== ALIVE ===");
   Serial.flush();
-  delay(1000);
-
-  // while (1) {Serial.println("ok"); delay(1000);}
 
   board.begin();
 
@@ -48,11 +46,6 @@ void setup() {
   // For power saving
   lastActive = millis(); // mark last active time since boot
 
-    // #if defined(SERIAL_RX)
-    //   repeater_serial.setPins(SERIAL_RX, SERIAL_TX);
-    //   repeater_serial.begin(115200);
-    //   serial_interface.begin(repeater_serial);
-    // #endif
 
 #ifdef DISPLAY_CLASS
   if (display.begin()) {
@@ -63,7 +56,6 @@ void setup() {
   }
 #endif
 
-  Serial.print("init radio time");
   if (!radio_init()) {
     MESH_DEBUG_PRINTLN("Radio init failed!");
     halt();
