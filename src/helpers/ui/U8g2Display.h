@@ -4,6 +4,10 @@
 #include <U8g2lib.h>
 #include <Wire.h>
 
+#ifndef U8G2_DISPLAY_TYPE
+  #error "U8G2_DISPLAY_TYPE is not defined"
+#endif
+
 #ifndef DISPLAY_ADDRESS
   #define DISPLAY_ADDRESS   0x3C
 #endif
