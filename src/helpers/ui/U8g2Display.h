@@ -16,10 +16,18 @@
   #define OLED_HEIGHT       40
 #endif
 
+#ifndef U8G2_ROTATION
+#define U8G2_ROTATION U8G2_R0
+#endif
+
+#ifndef PIN_OLED_RESET
+  #define PIN_OLED_RESET    -1
+#endif
+
 class U8g2Display : public DisplayDriver {
   // U8g2 constructor for SSD1306/SSD1315 72×40 panel — handles all
   // GDDRAM column/page offsets, SETMULTIPLEX, SETDISPLAYOFFSET internally
-  U8G2_SSD1306_72X40_ER_F_HW_I2C _u8g2;
+  U8G2_DISPLAY_TYPE _u8g2;
   bool _isOn;
   uint8_t _drawColor;
 
@@ -39,7 +47,7 @@ class U8g2Display : public DisplayDriver {
 
 public:
   U8g2Display() : DisplayDriver(OLED_WIDTH, OLED_HEIGHT),
-      _u8g2(U8G2_R0, /* reset=*/ U8X8_PIN_NONE),
+      _u8g2(U8G2_ROTATION, PIN_OLED_RESET),
       _isOn(false), _drawColor(1), _fontAscent(5), _fontHeight(6) {}
 
   bool begin() {
