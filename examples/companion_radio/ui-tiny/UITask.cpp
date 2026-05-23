@@ -725,7 +725,7 @@ void UITask::loop() {
     next_batt_chck = millis() + 8000;
   }
 #else
-  if (_display != NULL && _display->isOn() && millis >= next_batt_chck) {
+  if (_display != NULL && _display->isOn() && millis() >= next_batt_chck) {
     _cached_batt_mv = getBattMilliVolts();
     next_batt_chck = millis() + 8000;
   }
