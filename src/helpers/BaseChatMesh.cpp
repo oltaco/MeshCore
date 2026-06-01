@@ -69,6 +69,8 @@ void BaseChatMesh::bootstrapRTCfromContacts() {
 
 ContactInfo* BaseChatMesh::allocateContactSlot() {
   if (num_contacts < MAX_CONTACTS) {
+    contacts[num_contacts].chunk_index = 0xFF;
+    contacts[num_contacts].slot_index = 0xFF;
     return &contacts[num_contacts++];
   } else if (shouldOverwriteWhenFull()) {
     // Find oldest non-favourite contact by oldest lastmod timestamp
@@ -101,6 +103,8 @@ void BaseChatMesh::populateContactFromAdvert(ContactInfo& ci, const mesh::Identi
   }
   ci.last_advert_timestamp = timestamp;
   ci.lastmod = getRTCClock()->getCurrentTime();
+  ci.chunk_index = 0xFF; // not yet allocated to a chunk
+  ci.slot_index = 0xFF;  // not yet allocated to a slot in a chunk
 }
 
 void BaseChatMesh::onAdvertRecv(mesh::Packet* packet, const mesh::Identity& id, uint32_t timestamp, const uint8_t* app_data, size_t app_data_len) {
@@ -156,25 +160,31 @@ void BaseChatMesh::onAdvertRecv(mesh::Packet* packet, const mesh::Identity& id, 
       populateContactFromAdvert(ci, id, parser, timestamp);
       onDiscoveredContact(ci, true, packet->path_len, packet->path);
       onContactsFull();
-      MESH_DEBUG_PRINTLN("onAdvertRecv: unable to allocate contact slot for new contact");
+      MESH_DEBUG_PRINTLN("onAdvertRecv: unable to allocate contact slot (index) for new contact");
       return;
     }
-    
+    MESH_DEBUG_PRINTLN("onAdvertRecv: slot (index) is allocated, chunk=%d slot=%d is_new=%d", from->chunk_index, from->slot_index, is_new);
+
+    uint8_t saved_chunk = from->chunk_index;
+    uint8_t saved_slot = from->slot_index;
     populateContactFromAdvert(*from, id, parser, timestamp);
+    from->chunk_index = saved_chunk;
+    from->slot_index = saved_slot;
     from->sync_since = 0;
     from->shared_secret_valid = false;
   }
   // update
-    putBlobByKey(id.pub_key, PUB_KEY_SIZE, temp_buf, plen);
-    StrHelper::strncpy(from->name, parser.getName(), sizeof(from->name));
-    from->type = parser.getType();
-    if (parser.hasLatLon()) {
-      from->gps_lat = parser.getIntLat();
-      from->gps_lon = parser.getIntLon();
-    }
-    from->last_advert_timestamp = timestamp;
-    from->lastmod = getRTCClock()->getCurrentTime();
+  putBlobByKey(id.pub_key, PUB_KEY_SIZE, temp_buf, plen);
+  StrHelper::strncpy(from->name, parser.getName(), sizeof(from->name));
+  from->type = parser.getType();
+  if (parser.hasLatLon()) {
+    from->gps_lat = parser.getIntLat();
+    from->gps_lon = parser.getIntLon();
+  }
+  from->last_advert_timestamp = timestamp;
+  from->lastmod = getRTCClock()->getCurrentTime();
 
+  MESH_DEBUG_PRINTLN("onAdvertRecv: calling onDiscoveredContact, chunk=%d slot=%d is_new=%d", from->chunk_index, from->slot_index, is_new);
   onDiscoveredContact(*from, is_new, packet->path_len, packet->path);       // let UI know
 }
 
@@ -831,9 +841,17 @@ ContactInfo* BaseChatMesh::lookupContactByPubKey(const uint8_t* pub_key, int pre
 bool BaseChatMesh::addContact(const ContactInfo& contact) {
   ContactInfo* dest = allocateContactSlot();
   if (dest) {
-    *dest = contact;
-    dest->shared_secret_valid = false; // mark shared_secret as needing calculation
-    return true;  // success
+    if (contact.chunk_index == 0xFF) {
+      uint8_t saved_chunk = dest->chunk_index;
+      uint8_t saved_slot = dest->slot_index;
+      *dest = contact;
+      dest->chunk_index = saved_chunk;
+      dest->slot_index = saved_slot;
+    } else {
+      *dest = contact;
+    }
+    dest->shared_secret_valid = false;
+    return true;
   }
   return false;
 }
