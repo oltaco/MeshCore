@@ -61,6 +61,8 @@ void DataStore::begin() {
   checkAdvBlobFile();
   #if defined(EXTRAFS) || defined(QSPIFLASH)
   migrateToSecondaryFS();
+  tempMigrateFile("/_main.id");
+  tempMigrateFile("/new_prefs");
   #endif
 #else
   // init 'blob store' support
@@ -601,6 +603,35 @@ void DataStore::checkAdvBlobFile() {
       file.close();
     }
   }
+}
+
+bool DataStore::tempMigrateFile(const char* filename) {
+  if (_fsExtra->exists(filename) || !_fs->exists(filename)) return false;
+
+  char tempfile[24];
+  snprintf(tempfile, sizeof(tempfile), "%s.tmp", filename);
+  File oldFile = openRead(_fs, filename);
+  File newFile = openWrite(_fsExtra, tempfile);
+  if (!oldFile || !newFile) {
+    if (oldFile) oldFile.close();
+    if (newFile) newFile.close();
+    return false;
+  }
+
+  bool ok = true;
+  uint8_t buf[64];
+  int n;
+  while ((n = oldFile.read(buf, sizeof(buf))) > 0) {
+    if (newFile.write(buf, n) != n) { ok = false; break; };
+  }
+  if (n < 0) ok = false;
+  
+  oldFile.close();
+  newFile.close();
+
+  if (ok) return _fsExtra->rename(tempfile, filename);
+
+  return false;
 }
 
 void DataStore::migrateToSecondaryFS() {
