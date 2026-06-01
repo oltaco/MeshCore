@@ -26,7 +26,7 @@ DataStore::DataStore(FILESYSTEM& fs, mesh::RTCClock& clock) : _fs(&fs), _fsExtra
 #if defined(EXTRAFS) || defined(QSPIFLASH)
 DataStore::DataStore(FILESYSTEM& fs, FILESYSTEM& fsExtra, mesh::RTCClock& clock) : _fs(&fs), _fsExtra(&fsExtra), _clock(&clock),
 #if defined(NRF52_PLATFORM) || defined(STM32_PLATFORM)
-    identity_store(fs, "")
+    identity_store(fsExtra, "")
 #elif defined(RP2040_PLATFORM)
     identity_store(fs, "/identity")
 #else
@@ -198,17 +198,17 @@ bool DataStore::saveMainIdentity(const mesh::LocalIdentity &identity) {
 }
 
 void DataStore::loadPrefs(NodePrefs& prefs, double& node_lat, double& node_lon) {
-  if (_fs->exists("/new_prefs")) {
+  if (_getContactsChannelsFS()->exists("/new_prefs")) {
     loadPrefsInt("/new_prefs", prefs, node_lat, node_lon); // new filename
-  } else if (_fs->exists("/node_prefs")) {
+  } else if (_getContactsChannelsFS()->exists("/node_prefs")) {
     loadPrefsInt("/node_prefs", prefs, node_lat, node_lon);
     savePrefs(prefs, node_lat, node_lon);                // save to new filename
-    _fs->remove("/node_prefs"); // remove old
+    _getContactsChannelsFS()->remove("/node_prefs"); // remove old
   }
 }
 
 void DataStore::loadPrefsInt(const char *filename, NodePrefs& _prefs, double& node_lat, double& node_lon) {
-  File file = openRead(_fs, filename);
+  File file = openRead(_getContactsChannelsFS(), filename);
   if (file) {
     uint8_t pad[8];
 
@@ -247,7 +247,7 @@ void DataStore::loadPrefsInt(const char *filename, NodePrefs& _prefs, double& no
 }
 
 void DataStore::savePrefs(const NodePrefs& _prefs, double node_lat, double node_lon) {
-  File file = openWrite(_fs, "/new_prefs");
+  File file = openWrite(_getContactsChannelsFS(), "/new_prefs.tmp");
   if (file) {
     uint8_t pad[8];
     memset(pad, 0, sizeof(pad));
@@ -284,6 +284,7 @@ void DataStore::savePrefs(const NodePrefs& _prefs, double node_lat, double node_
 
     file.close();
   }
+  _getContactsChannelsFS()->rename("/new_prefs.tmp", "/new_prefs");
 }
 
 void DataStore::allocateChunkSlot(ContactInfo& contact)
