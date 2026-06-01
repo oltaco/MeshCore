@@ -59,6 +59,7 @@ bool IdentityStore::save(const char *name, const mesh::LocalIdentity& id) {
     file.close();
     #if defined(NRF52_PLATFORM) || defined(STM32_PLATFORM)
       if (success) {
+        MESH_DEBUG_PRINTLN("IdentityStore::save() renaming tmp file");
         success = _fs->rename("/_main.id.tmp", filename);
       }
     #endif
