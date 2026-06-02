@@ -20,7 +20,7 @@ static uint32_t _channelsSize = 0;
 
 #if defined(NRF52_PLATFORM) || defined(STM32_PLATFORM)
   #include <InternalFileSystem.h>
-  #include "helpers/MigrateTo4K.h"
+  #include "helpers/nrf52/MigrateTo4K.h"
   #if defined(QSPIFLASH)
     #include <CustomLFS2_QSPIFlash.h>
     DataStore store(InternalFS, QSPIFlash, rtc_clock);
