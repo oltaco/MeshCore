@@ -47,6 +47,18 @@ static File openWrite(FILESYSTEM* fs, const char* filename) {
 #endif
 }
 
+static bool rename(FILESYSTEM* fs, const char* oldname, const char* newname) {
+  // LittleFS supports atomic rename, but SPIFFS does not.
+  #if defined(NRF52_PLATFORM) || defined(STM32_PLATFORM) || defined(RP2040_PLATFORM)
+    return fs->rename(oldname, newname);
+  #else
+    if (fs->exists(newname)) {
+      fs->remove(newname);
+    }
+    return fs->rename(oldname, newname);
+  #endif
+}
+
 #if defined(NRF52_PLATFORM) || defined(STM32_PLATFORM)
   static uint32_t _ContactsChannelsTotalBlocks = 0;
 #endif
@@ -284,7 +296,7 @@ void DataStore::savePrefs(const NodePrefs& _prefs, double node_lat, double node_
 
     file.close();
   }
-  _getContactsChannelsFS()->rename("/new_prefs.tmp", "/new_prefs");
+  rename(_getContactsChannelsFS(), "/new_prefs.tmp", "/new_prefs");
 }
 
 void DataStore::allocateChunkSlot(ContactInfo& contact)
@@ -527,7 +539,7 @@ void DataStore::saveContacts(DataStoreHost* host)
             file.close();
             if (ok) {
                 MESH_DEBUG_PRINTLN("saveContacts: renaming %s to %s", tempname, filename);
-                _getContactsChannelsFS()->rename(tempname, filename);
+                rename(_getContactsChannelsFS(), tempname, filename);
             } else {
                 _getContactsChannelsFS()->remove(tempname);
             }
@@ -630,7 +642,7 @@ bool DataStore::tempMigrateFile(const char* filename) {
   oldFile.close();
   newFile.close();
 
-  if (ok) return _fsExtra->rename(tempfile, filename);
+  if (ok) return rename(_fsExtra, tempfile, filename);
 
   return false;
 }
