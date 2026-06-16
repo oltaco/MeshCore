@@ -12,15 +12,22 @@ static uint32_t _atoi(const char* sp) {
   return n;
 }
 
+#include <helpers/ContactInfo.h> // needed for chunk constants
+static uint8_t* _contactsData = NULL;
+static uint32_t _contactsSize = 0;
+static uint8_t* _channelsData = NULL;
+static uint32_t _channelsSize = 0;
+
 #if defined(NRF52_PLATFORM) || defined(STM32_PLATFORM)
   #include <InternalFileSystem.h>
+  #include "helpers/MigrateTo4K.h"
   #if defined(QSPIFLASH)
-    #include <CustomLFS_QSPIFlash.h>
+    #include <CustomLFS2_QSPIFlash.h>
     DataStore store(InternalFS, QSPIFlash, rtc_clock);
   #else
   #if defined(EXTRAFS)
-    #include <CustomLFS.h>
-    CustomLFS ExtraFS(0xD4000, 0x19000, 128);
+    #include <CustomLFS2.h>
+    CustomLFS2 ExtraFS(0xD4000, 0x19000, 4096);
     DataStore store(InternalFS, ExtraFS, rtc_clock);
   #else
     DataStore store(InternalFS, rtc_clock);
@@ -113,6 +120,11 @@ void halt() {
 
 void setup() {
   Serial.begin(115200);
+  
+  // attempt to migrate ExtraFS to 4kb blocks, do it early while there's more free ram for the file buffering
+  #if (defined(EXTRAFS) && !defined(QSPIFLASH))
+  migrateTo4kBlocks(ExtraFS, 128);
+  #endif
 
   board.begin();
 
@@ -130,7 +142,6 @@ void setup() {
 #endif
 
   if (!radio_init()) { halt(); }
-
   fast_rng.begin(radio_driver.getRngSeed());
 
 #if defined(NRF52_PLATFORM) || defined(STM32_PLATFORM)
