@@ -616,7 +616,11 @@ void DataStore::loadChannels(DataStoreHost* host) {
 }
 
 void DataStore::saveChannels(DataStoreHost* host) {
-  File file = openWrite(_getStorageFS(), "/channels2");
+  char filename[11];
+  char tempname[15];
+  snprintf(filename, sizeof(filename), "/channels2");
+  snprintf(tempname, sizeof(tempname), "%s.tmp", filename);
+  File file = openWrite(_getStorageFS(), tempname);
   if (file) {
     uint8_t channel_idx = 0;
     ChannelDetails ch;
@@ -632,6 +636,7 @@ void DataStore::saveChannels(DataStoreHost* host) {
       channel_idx++;
     }
     file.close();
+    renameFile(_getStorageFS(), tempname, filename);
   }
 }
 
