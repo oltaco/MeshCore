@@ -85,6 +85,7 @@ void RadioLibWrapper::resetAGC() {
 }
 
 void RadioLibWrapper::loop() {
+  if (_rxdutycycle) return; // noisefloor is meaningless during sleep periods
   if (state == STATE_RX && _num_floor_samples < NUM_NOISE_FLOOR_SAMPLES) {
     if (!isReceivingPacket()) {
       int rssi = getCurrentRSSI();
@@ -113,6 +114,16 @@ void RadioLibWrapper::startRecv() {
   }
 }
 
+void RadioLibWrapper::startRecvDutyCycle() {
+  int err = doStartRecvDutyCycle();
+  if (err == RADIOLIB_ERR_NONE) {
+    state = STATE_RX;
+  } else {
+    MESH_DEBUG_PRINTLN("RadioLibWrapper: error: startReceiveDutyCycleAuto(%d)", err);
+  }
+}
+
+
 bool RadioLibWrapper::isInRecvMode() const {
   return (state & ~STATE_INT_READY) == STATE_RX;
 }
@@ -137,7 +148,12 @@ int RadioLibWrapper::recvRaw(uint8_t* bytes, int sz) {
   }
 
   if (state != STATE_RX) {
-    int err = _radio->startReceive();
+    int err;
+    if (_rxdutycycle) {
+      err = doStartRecvDutyCycle();
+    } else {
+      err = _radio->startReceive();
+    }
     if (err == RADIOLIB_ERR_NONE) {
       state = STATE_RX;
     } else {

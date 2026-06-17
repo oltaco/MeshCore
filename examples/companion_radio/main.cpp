@@ -120,6 +120,11 @@ void halt() {
 
 void setup() {
   Serial.begin(115200);
+  while (!Serial) {
+    delay(100);
+    if (millis() > 5000) break;
+  }
+  
   
   // attempt to migrate ExtraFS to 4kb blocks, do it early while there's more free ram for the file buffering
   #if (defined(EXTRAFS) && !defined(QSPIFLASH))

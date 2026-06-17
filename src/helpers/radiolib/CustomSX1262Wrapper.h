@@ -40,6 +40,12 @@ public:
 
   void doResetAGC() override { sx126xResetAGC((SX126x *)_radio); }
 
+  int doStartRecvDutyCycle() override {
+    uint16_t preamble = preambleLengthForSF(_preamble_sf);
+    uint16_t min_symbols = (_preamble_sf >= 7) ? 8 : 12;  // per SX126x datasheet section 6.1.1.1
+    return ((CustomSX1262 *)_radio)->startReceiveDutyCycleAuto(preamble, min_symbols);
+  }
+
   void setRxBoostedGainMode(bool en) override {
     ((CustomSX1262 *)_radio)->setRxBoostedGainMode(en);
   }
