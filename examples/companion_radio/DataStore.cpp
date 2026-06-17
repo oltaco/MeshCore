@@ -246,17 +246,17 @@ bool DataStore::saveMainIdentity(const mesh::LocalIdentity &identity) {
 }
 
 void DataStore::loadPrefs(NodePrefs& prefs, double& node_lat, double& node_lon) {
-  if (_fs->exists("/new_prefs")) {
+  if (_getContactsChannelsFS()->exists("/new_prefs")) {
     loadPrefsInt("/new_prefs", prefs, node_lat, node_lon); // new filename
-  } else if (_fs->exists("/node_prefs")) {
+  } else if (_getContactsChannelsFS()->exists("/node_prefs")) {
     loadPrefsInt("/node_prefs", prefs, node_lat, node_lon);
     savePrefs(prefs, node_lat, node_lon);                // save to new filename
-    _fs->remove("/node_prefs"); // remove old
+    _getContactsChannelsFS()->remove("/node_prefs"); // remove old
   }
 }
 
 void DataStore::loadPrefsInt(const char *filename, NodePrefs& _prefs, double& node_lat, double& node_lon) {
-  File file = openRead(_fs, filename);
+  File file = openRead(_getContactsChannelsFS(), filename);
   if (file) {
     uint8_t pad[8];
 
@@ -295,7 +295,11 @@ void DataStore::loadPrefsInt(const char *filename, NodePrefs& _prefs, double& no
 }
 
 void DataStore::savePrefs(const NodePrefs& _prefs, double node_lat, double node_lon) {
-  File file = openWrite(_fs, "/new_prefs");
+  char filename[11];
+  char tempname[15];
+  snprintf(filename, sizeof(filename), "/new_prefs");
+  snprintf(tempname, sizeof(tempname), "%s.tmp", filename);
+  File file = openWrite(_getContactsChannelsFS(), tempname);
   if (file) {
     uint8_t pad[8];
     memset(pad, 0, sizeof(pad));
@@ -331,6 +335,7 @@ void DataStore::savePrefs(const NodePrefs& _prefs, double node_lat, double node_
     file.write((uint8_t *)_prefs.default_scope_key, sizeof(_prefs.default_scope_key));     // 121
 
     file.close();
+    renameFile(_getContactsChannelsFS(), tempname, filename);
   }
 }
 
@@ -656,7 +661,7 @@ void DataStore::checkAdvBlobFile() {
 }
 
 void DataStore::migrateToSecondaryFS() {
-  // migrate old adv_blobs, contacts3 and channels2 files to secondary FS if they don't already exist
+  // migrate old adv_blobs, contacts, channels, prefs files to secondary FS
   if (!_fsExtra->exists("/adv_blobs")) {
     if (_fs->exists("/adv_blobs")) {
     File oldAdvBlobs = openRead(_fs, "/adv_blobs");
@@ -679,14 +684,14 @@ void DataStore::migrateToSecondaryFS() {
     }
   }
   if (!_fsExtra->exists("/contacts3")) {
-    if (_fs->exists("/contacts3")) {
-      relocateFile(_fs, _fsExtra, "/contacts3");
-    }
+    if (_fs->exists("/contacts3")) relocateFile(_fs, _fsExtra, "/contacts3");
   }
   if (!_fsExtra->exists("/channels2")) {
-    if (_fs->exists("/channels2")) {
-      relocateFile(_fs, _fsExtra, "/channels2");
-    }
+    if (_fs->exists("/channels2")) relocateFile(_fs, _fsExtra, "/channels2");
+  }
+  if (!_fsExtra->exists("/new_prefs")) {
+    if (_fs->exists("/new_prefs")) relocateFile(_fs, _fsExtra, "/new_prefs");
+    if (_fs->exists("/node_prefs")) relocateFile(_fs, _fsExtra, "/node_prefs");
   }
 }
 
