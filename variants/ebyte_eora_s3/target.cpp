@@ -57,8 +57,8 @@ bool radio_init() {
 #ifdef SX126X_DIO2_AS_RF_SWITCH
   radio.setDio2AsRfSwitch(SX126X_DIO2_AS_RF_SWITCH);
 #endif
-#ifdef SX126X_RX_BOOSTED_GAIN
-  radio.setRxBoostedGainMode(SX126X_RX_BOOSTED_GAIN);
+#ifdef RX_BOOSTED_GAIN
+  radio.setRxBoostedGainMode(RX_BOOSTED_GAIN);
 #endif
 
   return true;  // success

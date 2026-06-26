@@ -92,7 +92,7 @@
 #define SX126X_DIO2_AS_RF_SWITCH true
 #define SX126X_DIO3_TCXO_VOLTAGE 1.8
 #define SX126X_CURRENT_LIMIT    140
-#define SX126X_RX_BOOSTED_GAIN  1
+#define RX_BOOSTED_GAIN  1
 
 #define P_LORA_DIO_1            SX126X_DIO1
 #define P_LORA_NSS              LORA_CS
