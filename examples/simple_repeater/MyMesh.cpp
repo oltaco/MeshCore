@@ -911,11 +911,11 @@ MyMesh::MyMesh(mesh::MainBoard &board, mesh::Radio &radio, mesh::MillisecondCloc
 
   _prefs.adc_multiplier = 0.0f; // 0.0f means use default board multiplier
 
-#if defined(USE_SX1262) || defined(USE_SX1268)
-#ifdef SX126X_RX_BOOSTED_GAIN
-  _prefs.rx_boosted_gain = SX126X_RX_BOOSTED_GAIN;
+#if defined(USE_SX1262) || defined(USE_SX1268) || defined(USE_LR1110)
+#ifdef RX_BOOSTED_GAIN
+  _prefs.rx_boosted_gain = RX_BOOSTED_GAIN;
 #else
-  _prefs.rx_boosted_gain = 1; // enabled by default;
+  _prefs.rx_boosted_gain = 1; // enabled by default
 #endif
 #endif
   _prefs.radio_fem_rxgain = 1;

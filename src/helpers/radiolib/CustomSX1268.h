@@ -62,8 +62,8 @@ class CustomSX1268 : public SX1268 {
   #ifdef SX126X_DIO2_AS_RF_SWITCH
       setDio2AsRfSwitch(SX126X_DIO2_AS_RF_SWITCH);
   #endif
-  #ifdef SX126X_RX_BOOSTED_GAIN
-      setRxBoostedGainMode(SX126X_RX_BOOSTED_GAIN);
+  #ifdef RX_BOOSTED_GAIN
+      setRxBoostedGainMode(RX_BOOSTED_GAIN);
   #endif
   #if defined(SX126X_RXEN) || defined(SX126X_TXEN)
     #ifndef SX1262X_RXEN

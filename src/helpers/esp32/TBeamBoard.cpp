@@ -312,7 +312,7 @@ bool TBeamBoard::power_init()
 //           P_LORA_BUSY = 32;
 //           RADIO_CLASS = CustomSX1262;
 //           WRAPPER_CLASS = CustomSX1262Wrapper;
-//           SX126X_RX_BOOSTED_GAIN = true;
+//           RX_BOOSTED_GAIN = true;
 //           SX126X_CURRENT_LIMIT = 140;
 //           //delete radio;
 //           radio = NULL;
