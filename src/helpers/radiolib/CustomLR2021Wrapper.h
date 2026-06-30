@@ -3,6 +3,14 @@
 #include "CustomLR2021.h"
 #include "RadioLibWrappers.h"
 
+#ifndef USE_LR2021
+#define USE_LR2021
+#endif
+
+#ifndef LR2021_RX_BOOST_LEVEL
+#define LR2021_RX_BOOST_LEVEL 7
+#endif
+
 class CustomLR2021Wrapper : public RadioLibWrapper {
 public:
   CustomLR2021Wrapper(CustomLR2021& radio, mesh::MainBoard& board) : RadioLibWrapper(radio, board) { }
@@ -18,6 +26,7 @@ public:
   bool isReceivingPacket() override {
     return ((CustomLR2021 *)_radio)->isReceiving();
   }
+
   float getCurrentRSSI() override {
     float rssi = -110;
     ((CustomLR2021 *)_radio)->getRssiInst(&rssi);
@@ -34,12 +43,15 @@ public:
 
   uint8_t getSpreadingFactor() const override { return ((CustomLR2021 *)_radio)->getSpreadingFactor(); }
   
-  // TODO: LR2021 takes an int for boosted gain level.
-  // void setRxBoostedGainMode(bool en) override {
-  //   ((CustomLR2021 *)_radio)->setRxBoostedGainMode(en);
-  // }
-  // bool getRxBoostedGainMode() const override {
-  //   return ((CustomLR2021 *)_radio)->getRxBoostedGainMode();
-  // }
+  bool setRxBoostedGainMode(bool en) override {
+    ((CustomLR2021 *)_radio)->standby(); // radio must be in standby to accept the setRxBoostedGainMode command, otherwise it returns -707 error.
+    int16_t status = ((CustomLR2021 *)_radio)->setRxBoostedGainMode(en ? LR2021_RX_BOOST_LEVEL: 0);
+    RadioLibWrapper::idle(); // trigger startReceive()
+    return status == RADIOLIB_ERR_NONE;
+  }
+
+  bool getRxBoostedGainMode() const override {
+    return ((CustomLR2021 *)_radio)->getRxBoostedGainMode();
+  }
 
 };

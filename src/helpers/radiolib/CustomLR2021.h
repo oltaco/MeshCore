@@ -3,7 +3,6 @@
 #include <RadioLib.h>
 #include "MeshCore.h"
 
-
 class CustomLR2021 : public LR2021 {
   bool _rx_boosted = false;
 
@@ -57,7 +56,7 @@ class CustomLR2021 : public LR2021 {
 
       
     #ifdef LR2021_RX_BOOSTED_GAIN
-      // setRxBoostedGainMode(); TODO: LR2021 takes an int for boosted gain, not a bool like sx1262
+      setRxBoostedGainMode(LR2021_RX_BOOSTED_GAIN);
     #endif
 
       return true;  // success
@@ -65,14 +64,7 @@ class CustomLR2021 : public LR2021 {
     
     float getFreqMHz() const { return freqMHz; }
 
-    // TODO: LR2021 has levels of boosted gain?
-    // see https://github.com/jgromes/RadioLib/blob/217f8cf4bd8f7bc803ba5e9f6db0235fa37f0f9b/src/modules/LR2021/LR2021.h#L672
-    // int16_t setRxBoostedGainMode(bool en) {
-    //   _rx_boosted = en;
-    //   return LR2021::setRxBoostedGainMode(en);
-    // }
-    //
-    // bool getRxBoostedGainMode() const { return _rx_boosted; }
+    bool getRxBoostedGainMode() const { return _rx_boosted; }
 
     bool isReceiving() {
       uint32_t irq = getIrqStatus();
