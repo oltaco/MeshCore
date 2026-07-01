@@ -25,18 +25,30 @@ public:
   }
 
   bool configSideDetectors(const uint8_t* sideDetSFs, uint8_t num) override {
-    _numSideDet = num;
-    if (num )
+    LR2021LoRaSideDetector_t tmp[3];
+    uint8_t sf = getSpreadingFactor();
+
+    if (sf >= 10 && num > 1) { return false; }  // only 1 side detector allowed when primary SF >= 10
     for (int i = 0; i < num; i++) {
-      _sideDet[i].sf = sideDetSFs[i];
-      _sideDet[i].ldro = false; // TODO: set ldro=true when tSym >=16
-      _sideDet[i].invertIQ = false;
-      _sideDet[i].syncWord = 0x12;
+      if (sideDetSFs[i] > 12 || sideDetSFs[i] < 5) { return false; }  // must be valid SF
+      if (sideDetSFs[i] <= sf) { return false; }  // must be < primary SF
+      if (sideDetSFs[i] > sf + 4) { return false; }  // span must not be > 4
+
+      tmp[i].sf = sideDetSFs[i];
+      tmp[i].ldro = false; // TODO: set ldro=true when tSym >=16
+      tmp[i].invertIQ = false;
+      tmp[i].syncWord = 0x12;
     }
-    int16_t status = applySideDetectorConfig();
+    int16_t status = ((CustomLR2021 *)_radio)->setSideDetector(tmp, num);
+    MESH_DEBUG_PRINTLN("setSideDetector() returned %d", status);
+    if (status == RADIOLIB_ERR_NONE) {
+      for (int i = 0; i < num; i++) { _sideDet[i] = tmp[i]; }
+      _numSideDet = num;
+    } else {
+      return false;
+    }
     
-    MESH_DEBUG_PRINTLN("configSideDetectors() returned %d", status);
-    return status == RADIOLIB_ERR_NONE;
+    return true;
   }
 
   int16_t applySideDetectorConfig() {

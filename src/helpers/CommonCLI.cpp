@@ -799,26 +799,21 @@ void CommonCLI::handleSetCmd(uint32_t sender_timestamp, char* command, char* rep
     const char *parts[4];
     uint8_t sideDetSFs[4];
     int num = mesh::Utils::parseTextParts(tmp, parts, 4);
-    bool ok = true;
-    if (num < 1 || num > 3) { ok = false; }
-    for (int i = 0; i < num; i++) {
-      int sf = atoi(parts[i]);
-      if (sf < 5 || sf > 12) { ok = false; break; }
-      sideDetSFs[i] = sf;
-    }
-    if (ok) {
-    sideDetSFs[num] = 0;
-    for (int i = 0; i <= num; i++) _prefs->extra_sf[i] = sideDetSFs[i];
-    savePrefs();
-
-    _callbacks->configSideDetectors(sideDetSFs, num);
-    sprintf(reply, "OK - extra spreading factors set");
-
+    if (num > 3) {
+      sprintf(reply, "Invalid extra SF config");
     } else {
-
-    sprintf(reply, "Invalid config");
+      for (int i = 0; i < num; i++) {
+        sideDetSFs[i] = atoi(parts[i]);
+      }
+      sideDetSFs[num] = 0;
+      if (_callbacks->configSideDetectors(sideDetSFs, num)) {
+        for (int i = 0; i <= num; i++) _prefs->extra_sf[i] = sideDetSFs[i];
+        savePrefs();
+        sprintf(reply, "OK - extra SFs set");
+      } else {
+        sprintf(reply, "Invalid extra SF config");
+      }
     }
-
   #endif
   } else {
     strcpy(reply, "unknown config: ");
