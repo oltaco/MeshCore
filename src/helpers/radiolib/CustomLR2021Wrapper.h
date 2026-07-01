@@ -23,6 +23,23 @@ public:
     updatePreamble(sf);
   }
 
+  bool setSideDetectors(const uint8_t* sideDetSFs, uint8_t num) override {
+    LR2021LoRaSideDetector_t tmp[3];
+    uint8_t n;
+    uint8_t primarySf = getSpreadingFactor();
+    
+    for (int i = 0; i < num; i++) {
+      tmp[i].sf = sideDetSFs[i];
+      tmp[i].ldro = false; // TODO: automatically set ldro true when tSym >=16
+      tmp[i].invertIQ = false;
+      tmp[i].syncWord = 0x12;
+    }
+    int16_t status = ((CustomLR2021 *)_radio)->setSideDetector(tmp, num);
+    
+    MESH_DEBUG_PRINTLN("setSideDetectors() returned %d", status);
+    return true == RADIOLIB_ERR_NONE;
+  }
+
   bool isReceivingPacket() override {
     return ((CustomLR2021 *)_radio)->isReceiving();
   }
@@ -53,5 +70,10 @@ public:
   bool getRxBoostedGainMode() const override {
     return ((CustomLR2021 *)_radio)->getRxBoostedGainMode();
   }
+
+  protected:
+    LR2021LoRaSideDetector_t _sideDet[3];
+    size_t _numSideDet = 0;
+
 
 };

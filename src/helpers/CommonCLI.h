@@ -65,6 +65,7 @@ struct NodePrefs { // persisted to file
   uint8_t path_hash_mode;   // which path mode to use when sending
   uint8_t loop_detect;
   uint8_t cad_enabled;      // hardware Channel Activity Detection before TX (boolean)
+  uint8_t extra_sf[4];
 };
 
 class CommonCLICallbacks {
@@ -114,6 +115,12 @@ public:
   virtual bool setRxBoostedGain(bool enable) {
     return false; // CommonCLI reports unsupported if not overridden by wrapper
   };
+
+  #if defined(USE_LR2021)
+  virtual bool setSideDetectors(const uint8_t sideDetSFs[], uint8_t num) {
+    return false; // Override in wrapper
+  } 
+  #endif
 };
 
 class CommonCLI {

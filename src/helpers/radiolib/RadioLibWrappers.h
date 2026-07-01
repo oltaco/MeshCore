@@ -68,6 +68,8 @@ public:
 
   virtual bool setRxBoostedGainMode(bool) { return false; }
   virtual bool getRxBoostedGainMode() const { return false; }
+  
+  virtual bool setSideDetectors(const uint8_t sideDetSFs[], uint8_t num) { return false; }
 };
 
 /**

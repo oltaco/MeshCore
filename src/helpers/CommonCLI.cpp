@@ -793,6 +793,33 @@ void CommonCLI::handleSetCmd(uint32_t sender_timestamp, char* command, char* rep
       _prefs->adc_multiplier = 0.0f;
       strcpy(reply, "Error: unsupported");
     };
+  #if defined(USE_LR2021)
+  } else if (memcmp(config, "extra.sf ", 9) == 0) {
+    strcpy(tmp, &config[9]);
+    const char *parts[4];
+    uint8_t sideDetSFs[4];
+    int num = mesh::Utils::parseTextParts(tmp, parts, 4);
+    bool ok = true;
+    if (num < 1 || num > 3) { ok = false; }
+    for (int i = 0; i < num; i++) {
+      int sf = atoi(parts[i]);
+      if (sf < 5 || sf > 12) { ok = false; break; }
+      sideDetSFs[i] = sf;
+    }
+    if (ok) {
+    sideDetSFs[num] = 0;
+    for (int i = 0; i <= num; i++) _prefs->extra_sf[i] = sideDetSFs[i];
+    savePrefs();
+
+    _callbacks->setSideDetectors(sideDetSFs, num);
+    sprintf(reply, "OK - extra spreading factors set");
+
+    } else {
+
+    sprintf(reply, "Invalid config");
+    }
+
+  #endif
   } else {
     strcpy(reply, "unknown config: ");
     StrHelper::strncpy(&reply[16], config, 160-17);
