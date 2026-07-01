@@ -811,7 +811,7 @@ void CommonCLI::handleSetCmd(uint32_t sender_timestamp, char* command, char* rep
     for (int i = 0; i <= num; i++) _prefs->extra_sf[i] = sideDetSFs[i];
     savePrefs();
 
-    _callbacks->setSideDetectors(sideDetSFs, num);
+    _callbacks->configSideDetectors(sideDetSFs, num);
     sprintf(reply, "OK - extra spreading factors set");
 
     } else {

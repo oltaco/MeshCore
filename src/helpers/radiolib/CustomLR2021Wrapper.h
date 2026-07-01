@@ -21,23 +21,27 @@ public:
     ((CustomLR2021 *)_radio)->setBandwidth(bw);
     ((CustomLR2021 *)_radio)->setCodingRate(cr);
     updatePreamble(sf);
+    applySideDetectorConfig();
   }
 
-  bool setSideDetectors(const uint8_t* sideDetSFs, uint8_t num) override {
-    LR2021LoRaSideDetector_t tmp[3];
-    uint8_t n;
-    uint8_t primarySf = getSpreadingFactor();
-    
+  bool configSideDetectors(const uint8_t* sideDetSFs, uint8_t num) override {
+    _numSideDet = num;
+    if (num )
     for (int i = 0; i < num; i++) {
-      tmp[i].sf = sideDetSFs[i];
-      tmp[i].ldro = false; // TODO: automatically set ldro true when tSym >=16
-      tmp[i].invertIQ = false;
-      tmp[i].syncWord = 0x12;
+      _sideDet[i].sf = sideDetSFs[i];
+      _sideDet[i].ldro = false; // TODO: set ldro=true when tSym >=16
+      _sideDet[i].invertIQ = false;
+      _sideDet[i].syncWord = 0x12;
     }
-    int16_t status = ((CustomLR2021 *)_radio)->setSideDetector(tmp, num);
+    int16_t status = applySideDetectorConfig();
     
-    MESH_DEBUG_PRINTLN("setSideDetectors() returned %d", status);
-    return true == RADIOLIB_ERR_NONE;
+    MESH_DEBUG_PRINTLN("configSideDetectors() returned %d", status);
+    return status == RADIOLIB_ERR_NONE;
+  }
+
+  int16_t applySideDetectorConfig() {
+    int16_t status = ((CustomLR2021 *)_radio)->setSideDetector(_sideDet, _numSideDet);
+    return status;
   }
 
   bool isReceivingPacket() override {

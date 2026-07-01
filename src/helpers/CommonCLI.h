@@ -117,7 +117,7 @@ public:
   };
 
   #if defined(USE_LR2021)
-  virtual bool setSideDetectors(const uint8_t sideDetSFs[], uint8_t num) {
+  virtual bool configSideDetectors(const uint8_t sideDetSFs[], uint8_t num) {
     return false; // Override in wrapper
   } 
   #endif
