@@ -43,7 +43,6 @@ public:
       tmp[i].invertIQ = false;
       tmp[i].syncWord = 0x12;
     }
-    _radio->standby();
     int16_t status = ((CustomLR2021 *)_radio)->setSideDetector(tmp, num);
     RadioLibWrapper::idle(); // trigger startReceive()
     MESH_DEBUG_PRINTLN("setSideDetector() returned %d", status);
@@ -59,7 +58,6 @@ public:
   }
 
   int16_t applySideDetectorConfig() {
-    _radio->standby();
     int16_t status = ((CustomLR2021 *)_radio)->setSideDetector(_sideDet, _numSideDet);
     RadioLibWrapper::idle(); // trigger startReceive()
     return status;
@@ -86,7 +84,7 @@ public:
   uint8_t getSpreadingFactor() const override { return ((CustomLR2021 *)_radio)->getSpreadingFactor(); }
   
   bool setRxBoostedGainMode(bool en) override {
-    ((CustomLR2021 *)_radio)->standby(); // radio must be in standby to accept the setRxBoostedGainMode command, otherwise it returns -707 error.
+    ((CustomLR2021 *)_radio)->standby(); // LR2021 must be in standby to accept setRxBoostedGainMode
     int16_t status = ((CustomLR2021 *)_radio)->setRxBoostedGainMode(en ? LR2021_RX_BOOST_LEVEL: 0);
     RadioLibWrapper::idle(); // trigger startReceive()
     return status == RADIOLIB_ERR_NONE;
