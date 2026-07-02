@@ -35,12 +35,19 @@ public:
       if (sideDetSFs[i] > sf + 4) { return false; }  // span must not be > 4
 
       tmp[i].sf = sideDetSFs[i];
-      tmp[i].ldro = false; // TODO: set ldro=true when tSym >=16
+      if (sideDetSFs[i] == 10) { // TODO: set ldro=true when tSym >=16
+        tmp[i].ldro = true;
+      } else {
+        tmp[i].ldro = false; 
+      }
       tmp[i].invertIQ = false;
       tmp[i].syncWord = 0x12;
     }
+    _radio->standby();
     int16_t status = ((CustomLR2021 *)_radio)->setSideDetector(tmp, num);
+    RadioLibWrapper::idle(); // trigger startReceive()
     MESH_DEBUG_PRINTLN("setSideDetector() returned %d", status);
+
     if (status == RADIOLIB_ERR_NONE) {
       for (int i = 0; i < num; i++) { _sideDet[i] = tmp[i]; }
       _numSideDet = num;
@@ -52,7 +59,9 @@ public:
   }
 
   int16_t applySideDetectorConfig() {
+    _radio->standby();
     int16_t status = ((CustomLR2021 *)_radio)->setSideDetector(_sideDet, _numSideDet);
+    RadioLibWrapper::idle(); // trigger startReceive()
     return status;
   }
 
