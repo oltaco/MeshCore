@@ -168,11 +168,11 @@ static const uint8_t PROGMEM
       255 },                        //     255 = max (500 ms) delay
 
   Rcmd1[] = {                       // 7735R init, part 1 (red or green tab)
-    15,                             // 15 commands in list:
-    ST77XX_SWRESET,   ST_CMD_DELAY, //  1: Software reset, 0 args, w/delay
-      150,                          //     150 ms delay
+    14,                             // 14 commands in list:
+    /*ST77XX_SWRESET,   ST_CMD_DELAY, //  1: Software reset, 0 args, w/delay
+      150,  */                        //     150 ms delay
     ST77XX_SLPOUT,    ST_CMD_DELAY, //  2: Out of sleep mode, 0 args, w/delay
-      255,                          //     500 ms delay
+      120,                          //     120 ms delay
     ST7735_FRMCTR1, 3,              //  3: Framerate ctrl - normal mode, 3 arg:
       0x01, 0x2C, 0x2D,             //     Rate = fosc/(1x2+40) * (LINE+2C+2D)
     ST7735_FRMCTR2, 3,              //  4: Framerate ctrl - idle mode, 3 args:
