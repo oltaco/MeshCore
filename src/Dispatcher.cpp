@@ -203,6 +203,7 @@ void Dispatcher::checkRecv() {
         MESH_DEBUG_PRINTLN("%s Dispatcher::checkRecv(): WARNING: received data, no unused packets available!", getLogDateTime());
       } else {
         if (tryParsePacket(pkt, raw, len)) {
+          pkt->_detectorIndex = _radio->getLastDetectorIndex();
           pkt->_snr = _radio->getLastSNR() * 4.0f;
           score = _radio->packetScore(_radio->getLastSNR(), len);
           air_time = _radio->getEstAirtimeFor(len);
@@ -219,8 +220,8 @@ void Dispatcher::checkRecv() {
   if (pkt) {
     #if MESH_PACKET_LOGGING
     Serial.print(getLogDateTime());
-    Serial.printf(": RX, len=%d (type=%d, route=%s, payload_len=%d) SNR=%d RSSI=%d score=%d time=%d", 
-            pkt->getRawLength(), pkt->getPayloadType(), pkt->isRouteDirect() ? "D" : "F", pkt->payload_len,
+    Serial.printf(": RX, len=%d (type=%d, route=%s, payload_len=%d) Detector=%d, SNR=%d RSSI=%d score=%d time=%d", 
+            pkt->getRawLength(), pkt->getPayloadType(), pkt->isRouteDirect() ? "D" : "F", pkt->payload_len, pkt->_detectorIndex,
             (int)pkt->getSNR(), (int)_radio->getLastRSSI(), (int)(score*1000), air_time);
 
     static uint8_t packet_hash[MAX_HASH_SIZE];

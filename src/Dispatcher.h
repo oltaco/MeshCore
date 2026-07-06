@@ -78,6 +78,8 @@ public:
 
   virtual float getLastRSSI() const { return 0; }
   virtual float getLastSNR() const { return 0; }
+
+  virtual int8_t getLastDetectorIndex() const { return 0; }
 };
 
 /**

@@ -63,6 +63,12 @@ public:
     return status;
   }
 
+  int8_t getLastDetectorIndex() const override {
+    uint8_t detector = 0;
+    int16_t packetStatus = ((CustomLR2021 *)_radio)->getLoRaPacketStatus(NULL, NULL, NULL, NULL, NULL, NULL, &detector);
+    return detector;
+  }
+
   bool isReceivingPacket() override {
     return ((CustomLR2021 *)_radio)->isReceiving();
   }

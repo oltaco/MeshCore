@@ -49,6 +49,7 @@ public:
   uint8_t path[MAX_PATH_SIZE];
   uint8_t payload[MAX_PACKET_PAYLOAD];
   int8_t _snr;
+  int8_t _detectorIndex;
 
   /**
    * \brief calculate the hash of payload + type
