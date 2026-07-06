@@ -413,20 +413,30 @@ bool ST7735Display::i2c_probe(TwoWire& wire, uint8_t addr) {
 #endif
 
 bool ST7735Display::begin() {
+  if (!sprite) {
+    // alloc offscreen canvas
+    sprite = new TFT_eSprite(&lcd);
+    if (sprite) {
+      if (sprite->createSprite(160, 80)) {
+        sprite->fillScreen(ST77XX_BLACK);
+        sprite->setTextColor(curr_color = ST77XX_WHITE);
+      } else {
+        Serial.printf("ST7735Display: failed to alloc canvas pixels");
+      }
+    } else {
+      Serial.printf("ST7735Display: failed to alloc canvas");
+    }
+  }
+  
   if (!_isOn) {
     if (_peripher_power) _peripher_power->claim();
 
-    delay(3000); // TEMP!!
+    delay(100); // TEMP!!
     pinMode(PIN_TFT_RST, OUTPUT);
     pinMode(PIN_TFT_CS, OUTPUT);
     pinMode(PIN_TFT_DC, OUTPUT);
+    pinMode(PIN_TFT_LEDA_CTL, OUTPUT);
 
-    // Pulse Reset low for 10ms
-    digitalWrite(PIN_TFT_RST, HIGH);
-    delay(1);
-    digitalWrite(PIN_TFT_RST, LOW);
-    delay(10);
-    digitalWrite(PIN_TFT_RST, HIGH);
 #ifdef ESP_PLATFORM
     _spi->begin(_clk,_miso,_mosi,-1);
 #else
@@ -434,55 +444,56 @@ bool ST7735Display::begin() {
 #endif
     _spi->setClockDivider(SPI_CLOCK_DIV2);
 
-    pinMode(PIN_TFT_LEDA_CTL, OUTPUT);
-    digitalWrite(PIN_TFT_LEDA_CTL, PIN_TFT_LEDA_CTL_ACTIVE);
-    digitalWrite(PIN_TFT_RST, HIGH);
-
-    displayInit(Rcmd1);
-
     _height = 80;
     _width = 160;
     _colstart = 24;
     _rowstart = 0;
 
-#if defined(HELTEC_TRACKER_V2) || defined(HELTEC_T096)
-    displayInit(Rcmd2green160x80);
-    //uint8_t madctl = ST77XX_MADCTL_MY | ST77XX_MADCTL_MV |ST7735_MADCTL_BGR;//Adjust color to BGR
-    //display.sendCommand(ST77XX_MADCTL, &madctl, 1);
-#endif
-
-    displayInit(Rcmd3);
-
-    setRotation(DISPLAY_ROTATION);
-
+    _resetAndInit();
+    
     sendCommand(ST77XX_DISPON);
-
-    if (!sprite) {
-      // alloc offscreen canvas
-      sprite = new TFT_eSprite(&lcd);
-      if (sprite) {
-        if (sprite->createSprite(160, 80)) {
-          sprite->fillScreen(ST77XX_BLACK);
-          sprite->setTextColor(curr_color = ST77XX_WHITE);
-        } else {
-          Serial.printf("ST7735Display: failed to alloc canvas pixels");
-        }
-      } else {
-        Serial.printf("ST7735Display: failed to alloc canvas");
-      }
-    }
     
     _isOn = true;
   }
   return true;
 }
 
+void ST7735Display::_resetAndInit() {
+    // Pulse Reset low for 10ms
+    digitalWrite(PIN_TFT_RST, HIGH);
+    delay(2);
+    digitalWrite(PIN_TFT_RST, LOW);
+    delay(10);
+    digitalWrite(PIN_TFT_RST, HIGH);
+    delay(2);
+
+    // run init commands
+    displayInit(Rcmd1);
+#if defined(HELTEC_TRACKER_V2) || defined(HELTEC_T096)
+    displayInit(Rcmd2green160x80);
+    //uint8_t madctl = ST77XX_MADCTL_MY | ST77XX_MADCTL_MV |ST7735_MADCTL_BGR;//Adjust color to BGR
+    //display.sendCommand(ST77XX_MADCTL, &madctl, 1);
+#endif
+    displayInit(Rcmd3);
+    setRotation(DISPLAY_ROTATION);
+    
+    // clear the buffer before display on
+    sprite->fillScreen(ST77XX_BLACK);
+    endFrame();
+    
+    // turn on backlight
+    digitalWrite(PIN_TFT_LEDA_CTL, PIN_TFT_LEDA_CTL_ACTIVE);
+
+}
+
 void ST7735Display::turnOn() {
   if (!_isOn) {
+    if (_peripher_power) _peripher_power->claim();
+    _resetAndInit();
     sendCommand(ST77XX_DISPON);
 
     // Now turn on the backlight
-    digitalWrite(PIN_TFT_LEDA_CTL, PIN_TFT_LEDA_CTL_ACTIVE);
+    // digitalWrite(PIN_TFT_LEDA_CTL, PIN_TFT_LEDA_CTL_ACTIVE);
     _isOn = true;
   }
 }
@@ -507,7 +518,7 @@ void ST7735Display::clear() {
 void ST7735Display::startFrame(Color bkg) {
   sprite->fillScreen(ST77XX_BLACK);
   sprite->setTextColor(curr_color = ST77XX_WHITE);
-  //sprite->setFreeFont(&FreeSans7pt7b);
+  sprite->setFreeFont();
   sprite->setTextSize(1);      // This one affects size of Please wait... message
   //sprite->cp437(true);         // Use full 256 char 'Code Page 437' font
 }
