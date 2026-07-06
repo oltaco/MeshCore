@@ -789,6 +789,12 @@ void UITask::loop() {
 
   if (curr) curr->poll();
 
+  // early detection of button press for screen on
+  if (_display != NULL && !_display->isOn() && user_btn.isPressed()) {
+    checkDisplayOn(0);
+    user_btn.cancelClick();
+  }
+
   if (_display != NULL && _display->isOn()) {
     if (millis() >= _next_refresh && curr) {
       _display->startFrame();
