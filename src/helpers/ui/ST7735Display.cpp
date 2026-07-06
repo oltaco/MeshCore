@@ -251,7 +251,7 @@ static const uint8_t PROGMEM
       0x00, 0x9F },                 //     XEND = 159
 
   Rcmd3[] = {                       // 7735R init, part 3 (red or green tab)
-    4,                              //  4 commands in list:
+    2,                              //  2 commands in list:
     ST7735_GMCTRP1, 16      ,       //  1: Gamma Adjustments (pos. polarity), 16 args + delay:
       0x02, 0x1c, 0x07, 0x12,       //     (Not entirely necessary, but provides
       0x37, 0x32, 0x29, 0x2d,       //      accurate colors)
@@ -261,11 +261,7 @@ static const uint8_t PROGMEM
       0x03, 0x1d, 0x07, 0x06,       //     (Not entirely necessary, but provides
       0x2E, 0x2C, 0x29, 0x2D,       //      accurate colors)
       0x2E, 0x2E, 0x37, 0x3F,
-      0x00, 0x00, 0x02, 0x10,
-    ST77XX_NORON,     ST_CMD_DELAY, //  3: Normal display on, no args, w/delay
-      10,                           //     10 ms delay
-    ST77XX_DISPON,    ST_CMD_DELAY, //  4: Main screen turn on, no args w/delay
-      100 };                        //     100 ms delay
+      0x00, 0x00, 0x02, 0x10 };                        //     100 ms delay
 
 static int16_t _xstart = 0;          ///< Internal framebuffer X offset
 static int16_t _ystart = 0;          ///< Internal framebuffer Y offset
