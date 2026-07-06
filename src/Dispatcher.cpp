@@ -106,6 +106,9 @@ void Dispatcher::loop() {
       }
 
       _radio->onSendFinished();
+
+      if (outbound->_txIndex != 0) _radio->switchSF(0); // restore primary SF after LR2021 bridge send
+
       logTx(outbound, 2 + outbound->getPathByteLen() + outbound->payload_len);
       if (outbound->isRouteFlood()) {
         n_sent_flood++;
@@ -118,6 +121,8 @@ void Dispatcher::loop() {
       MESH_DEBUG_PRINTLN("%s Dispatcher::loop(): WARNING: outbound packed send timed out!", getLogDateTime());
 
       _radio->onSendFinished();
+      if (outbound->_txIndex != 0) _radio->switchSF(0);   // restore primary SF after timed out bridge send
+
       logTxFail(outbound, 2 + outbound->getPathByteLen() + outbound->payload_len);
 
       releasePacket(outbound);  // return to pool
@@ -204,6 +209,7 @@ void Dispatcher::checkRecv() {
       } else {
         if (tryParsePacket(pkt, raw, len)) {
           pkt->_detectorIndex = _radio->getLastDetectorIndex();
+          pkt->_txIndex = 0;
           pkt->_snr = _radio->getLastSNR() * 4.0f;
           score = _radio->packetScore(_radio->getLastSNR(), len);
           air_time = _radio->getEstAirtimeFor(len);
@@ -325,11 +331,23 @@ void Dispatcher::checkSend() {
     } else {
       memcpy(&raw[len], outbound->payload, outbound->payload_len); len += outbound->payload_len;
 
+      // LR2021 SF bridge
+      if (outbound->_txIndex != 0) {
+        if (_radio->switchSF(outbound->_txIndex) != outbound->_txIndex) {
+          MESH_DEBUG_PRINTLN("%s Dispatcher::checkSend(): switchSF(%d) failed, skipping bridge send", getLogDateTime(), (int)outbound->_txIndex);
+          _radio->switchSF(0);
+          releasePacket(outbound);
+          outbound = NULL;
+          return;
+        }
+      }
+
       uint32_t max_airtime = _radio->getEstAirtimeFor(len)*3/2;
       outbound_start = _ms->getMillis();
       bool success = _radio->startSendRaw(raw, len);
       if (!success) {
         MESH_DEBUG_PRINTLN("%s Dispatcher::loop(): ERROR: send start failed!", getLogDateTime());
+        if (outbound->_txIndex != 0) _radio->switchSF(0);
 
         logTxFail(outbound, outbound->getRawLength());
   
@@ -361,6 +379,8 @@ Packet* Dispatcher::obtainNewPacket() {
   } else {
     pkt->payload_len = pkt->path_len = 0;
     pkt->_snr = 0;
+    pkt->_detectorIndex = 0;
+    pkt->_txIndex = 0;
   }
   return pkt;
 }

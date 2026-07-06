@@ -21,6 +21,7 @@ public:
     ((CustomLR2021 *)_radio)->setBandwidth(bw);
     ((CustomLR2021 *)_radio)->setCodingRate(cr);
     updatePreamble(sf);
+    _primarySF = sf;
     applySideDetectorConfig();
   }
 
@@ -69,6 +70,23 @@ public:
     return detector;
   }
 
+  int8_t switchSF(uint8_t idx) override {
+    MESH_DEBUG_PRINTLN("switchSF(%d)...", idx);
+    // handle return to main radio settings
+    if (idx == 0) {
+      int16_t status = ((CustomLR2021 *)_radio)->setSpreadingFactor(_primarySF);
+      if (status != RADIOLIB_ERR_NONE) return -1;
+      applySideDetectorConfig();
+      return idx;
+    }
+    
+    // handle setting SF by side detector index
+    int16_t status = ((CustomLR2021 *)_radio)->setSpreadingFactor(_sideDet[idx-1].sf);
+    if (status != RADIOLIB_ERR_NONE) return -1;
+
+    return idx;
+  }
+
   bool isReceivingPacket() override {
     return ((CustomLR2021 *)_radio)->isReceiving();
   }
@@ -103,6 +121,6 @@ public:
   protected:
     LR2021LoRaSideDetector_t _sideDet[3];
     size_t _numSideDet = 0;
-
+    int8_t _primarySF;
 
 };

@@ -1070,6 +1070,25 @@ bool MyMesh::setRxBoostedGain(bool enable) {
 bool MyMesh::configSideDetectors(const uint8_t sideDetSFs[], uint8_t num) {
   return radio_driver.configSideDetectors(sideDetSFs, num);
 }
+mesh::DispatcherAction MyMesh::routeRecvPacket(mesh::Packet* packet) {
+  mesh::DispatcherAction action = mesh::Mesh::routeRecvPacket(packet); // do normal send
+  uint32_t primary_delay = action & 0xFFFFFF;
+
+  if (_prefs.extra_sf[0] != 0 && (action >> 24) != 0) { TODO: prefs to configure sf bridge instead of always bridging to the sf of first side detector index.
+    mesh::Packet* clone = obtainNewPacket();
+    if (clone) {
+      uint8_t tmp[MAX_TRANS_UNIT+1];
+      uint8_t len = packet->writeTo(tmp);
+      if (clone->readFrom(tmp, len)) {
+        clone->_txIndex = 1;
+        sendPacket(clone, (action >> 24), action & 0xFFFFFF); // clone has lower priority, same delay
+      } else {
+        releasePacket(clone);
+      }
+    }
+  }
+  return action;
+}
 #endif
 
 void MyMesh::formatNeighborsReply(char *reply) {

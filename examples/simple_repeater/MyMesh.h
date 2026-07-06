@@ -256,6 +256,7 @@ public:
 
   #if defined(USE_LR2021)
   virtual bool configSideDetectors(const uint8_t sideDetSFs[], uint8_t num) override;
+  mesh::DispatcherAction routeRecvPacket(mesh::Packet* packet) override; // LR2021 SF bridge lives here for now
   #endif
 
 };

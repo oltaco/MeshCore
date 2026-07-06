@@ -70,6 +70,7 @@ public:
   virtual bool getRxBoostedGainMode() const { return false; }
   
   virtual bool configSideDetectors(const uint8_t sideDetSFs[], uint8_t num) { return false; }
+  virtual int8_t switchSF(uint8_t idx) { return -1; }
 };
 
 /**

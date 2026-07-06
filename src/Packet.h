@@ -49,7 +49,8 @@ public:
   uint8_t path[MAX_PATH_SIZE];
   uint8_t payload[MAX_PACKET_PAYLOAD];
   int8_t _snr;
-  int8_t _detectorIndex;
+  int8_t _detectorIndex; // the detector the packet was received on. 0 is primary, others may be used by LR2021.
+  int8_t _txIndex; // the index of the spreading factor that we want to send a packet on.
 
   /**
    * \brief calculate the hash of payload + type

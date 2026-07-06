@@ -41,7 +41,7 @@ protected:
   /**
    * \brief  Decide what to do with received packet, ie. discard, forward, or hold
    */
-  DispatcherAction routeRecvPacket(Packet* packet);
+  virtual DispatcherAction routeRecvPacket(Packet* packet);
 
   /**
    * \brief    Called _before_ the packet is dispatched to the on..Recv() methods.

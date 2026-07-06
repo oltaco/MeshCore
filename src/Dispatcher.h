@@ -80,6 +80,7 @@ public:
   virtual float getLastSNR() const { return 0; }
 
   virtual int8_t getLastDetectorIndex() const { return 0; }
+  virtual int8_t switchSF(const uint8_t idx) { return -1; }
 };
 
 /**
