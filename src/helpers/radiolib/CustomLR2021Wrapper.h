@@ -100,6 +100,7 @@ public:
     return ((CustomLR2021 *)_radio)->getRxBoostedGainMode();
   }
 
+  
   protected:
     LR2021LoRaSideDetector_t _sideDet[3];
     size_t _numSideDet = 0;

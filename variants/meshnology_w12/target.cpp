@@ -63,6 +63,12 @@ bool radio_init() {
   radio.setRfSwitchTable(rfswitch_dios, rfswitch_table);
 #endif
 
+  // trim xtal foot caps to counteract freq offset
+  uint8_t xtaTrim = 0x12 - 12; 
+  uint8_t xtbTrim = 0x12 - 12; 
+  uint8_t xtalStartDelay = 0;
+  radio.setXoscCpTrim(xtaTrim, xtbTrim, 0);
+
   return true;
 }
 
