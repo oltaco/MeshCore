@@ -190,12 +190,14 @@ bool RadioLibWrapper::isChannelActive() {
   // cad: hardware channel activity detection
   if (_cad_enabled) {
     int16_t result = performChannelScan();
-    // scanChannel() triggers DIO interrupt (CAD done) which sets STATE_INT_READY
-    // via setFlag() ISR. Clear it before restarting RX so recvRaw() doesn't
-    // try to read a non-existent packet and count a spurious recv error.
+    if (result == RADIOLIB_PREAMBLE_DETECTED || result == RADIOLIB_LORA_DETECTED) {
+      state = STATE_RX;
+      return true;
+    } else if (result == RADIOLIB_CHANNEL_FREE) {
     state = STATE_IDLE;
     startRecv();
-    if (result != RADIOLIB_CHANNEL_FREE) return true;
+    return false;
+    }
   }
 
   return false;

@@ -26,6 +26,16 @@ public:
   bool isReceivingPacket() override { 
     return ((CustomSX1262 *)_radio)->isReceiving();
   }
+  
+  int16_t performChannelScan() override {
+    // CAD should go straight to Rx when it doesn't return channel idle.
+    ChannelScanConfig_t cfg = { .cad = {
+    .symNum=RADIOLIB_SX126X_CAD_PARAM_DEFAULT, .detPeak=RADIOLIB_SX126X_CAD_PARAM_DEFAULT,
+    .detMin=RADIOLIB_SX126X_CAD_PARAM_DEFAULT, .exitMode=RADIOLIB_SX126X_CAD_GOTO_RX,
+    .timeout=0, .irqFlags=RADIOLIB_IRQ_CAD_DEFAULT_FLAGS, .irqMask=RADIOLIB_IRQ_CAD_DEFAULT_MASK }};
+    return _radio->scanChannel(cfg);
+  }
+
   float getCurrentRSSI() override {
     return ((CustomSX1262 *)_radio)->getRSSI(false);
   }
