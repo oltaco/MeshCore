@@ -7,6 +7,7 @@ class CustomLR1110 : public LR1110 {
   uint32_t _preambleMillis = 66;
   uint32_t _maxPayloadMillis = 3934;
   uint32_t _activityAt = 0;
+  bool _preambleSeen = false;
   bool _headerSeen = false;
   bool _rx_boosted = false;
 
@@ -48,13 +49,12 @@ class CustomLR1110 : public LR1110 {
       uint32_t now  = millis();
       if (hdrErr) {
         clearIrqState(RADIOLIB_LR11X0_IRQ_PREAMBLE_DETECTED | RADIOLIB_LR11X0_IRQ_SYNC_WORD_HEADER_VALID | RADIOLIB_LR11X0_IRQ_HEADER_ERR);
-        _activityAt = 0;
-        _headerSeen = false;
+        _activityAt = 0; _preambleSeen = false; _headerSeen = false;
         return false;
       }
       if (!header && _headerSeen) {
         // something cleared the header flag, reset our state.
-        _activityAt = 0; _headerSeen = false;
+        _activityAt = 0; _preambleSeen = false; _headerSeen = false;
         return false;
       }
       if (header) {
@@ -62,23 +62,27 @@ class CustomLR1110 : public LR1110 {
         if (now - _activityAt > _maxPayloadMillis) {
           MESH_DEBUG_PRINTLN("Clearing header IRQ after %ums", _maxPayloadMillis);
           clearIrqState(RADIOLIB_LR11X0_IRQ_PREAMBLE_DETECTED | RADIOLIB_LR11X0_IRQ_SYNC_WORD_HEADER_VALID | RADIOLIB_LR11X0_IRQ_HEADER_ERR);
-          _activityAt = 0; _headerSeen = false;
+          _activityAt = 0; _preambleSeen = false; _headerSeen = false;
           return false;
         }
         return true;
       }
-      if (preamble) {
-        if (_activityAt == 0) _activityAt = now;
+      if (preamble || _activityAt != 0) {
+        if (preamble && !_preambleSeen) {
+          _preambleSeen = true;
+          _activityAt = now; // update _activityAt to preamble time
+        }
         if (now - _activityAt > _preambleMillis) {
           clearIrqState(RADIOLIB_LR11X0_IRQ_PREAMBLE_DETECTED);
           _activityAt = 0;
+          _preambleSeen = false;
           MESH_DEBUG_PRINTLN("Clearing preamble IRQ after %ums", _preambleMillis);
 
           return false;
         }
         return true;
       }
-      _activityAt = 0; _headerSeen = false;
+      _activityAt = 0; _preambleSeen = false; _headerSeen = false;
       return false;
     }
     
@@ -89,6 +93,9 @@ class CustomLR1110 : public LR1110 {
     void setMaxPayloadMillis(uint32_t payloadMillis) {
       _maxPayloadMillis = payloadMillis;
       MESH_DEBUG_PRINTLN("Set _maxPayloadMillis=%u", _maxPayloadMillis);
+    }
+    void setActivityAt(uint32_t activityMillis) {
+      if (_activityAt == 0) _activityAt = activityMillis;
     }
 
     uint8_t getSpreadingFactor() const { return spreadingFactor; }
