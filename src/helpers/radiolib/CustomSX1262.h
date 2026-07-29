@@ -7,6 +7,7 @@ class CustomSX1262 : public SX1262 {
   uint32_t _preambleMillis = 66;
   uint32_t _maxPayloadMillis = 3934;
   uint32_t _activityAt = 0;
+  bool _preambleSeen = false;
   bool _headerSeen = false;
 
   public:
@@ -113,38 +114,40 @@ class CustomSX1262 : public SX1262 {
       uint32_t now  = millis();
       if (hdrErr) {
         clearIrqFlags(RADIOLIB_SX126X_IRQ_PREAMBLE_DETECTED | RADIOLIB_SX126X_IRQ_HEADER_VALID | RADIOLIB_SX126X_IRQ_HEADER_ERR | RADIOLIB_SX126X_IRQ_SYNC_WORD_VALID);
-        _activityAt = 0;
-        _headerSeen = false;
+        _activityAt = 0; _preambleSeen = false; _headerSeen = false;
         return false;
       }
       if (!header && _headerSeen) {
         // something cleared the header flag, reset our state.
-        _activityAt = 0; _headerSeen = false;
+        _activityAt = 0; _preambleSeen = false; _headerSeen = false;
         return false;
       }
-
       if (header) {
         if (!_headerSeen) { _headerSeen = true; _activityAt = now; };
         if (now - _activityAt > _maxPayloadMillis) {
           MESH_DEBUG_PRINTLN("Clearing header IRQ after %ums", _maxPayloadMillis);
           clearIrqFlags(RADIOLIB_SX126X_IRQ_PREAMBLE_DETECTED | RADIOLIB_SX126X_IRQ_HEADER_VALID | RADIOLIB_SX126X_IRQ_HEADER_ERR | RADIOLIB_SX126X_IRQ_SYNC_WORD_VALID);
-          _activityAt = 0; _headerSeen = false;
+          _activityAt = 0; _preambleSeen = false; _headerSeen = false;
           return false;
         }
         return true;
       }
-      if (preamble) {
-        if (_activityAt == 0) _activityAt = now;
+      if (preamble || _activityAt != 0) {
+        if (preamble && !_preambleSeen) {
+          _preambleSeen = true;
+          _activityAt = now; // update _activityAt to preamble time
+        }
         if (now - _activityAt > _preambleMillis) {
           clearIrqFlags(RADIOLIB_SX126X_IRQ_PREAMBLE_DETECTED);
           _activityAt = 0;
+          _preambleSeen = false;
           MESH_DEBUG_PRINTLN("Clearing preamble IRQ after %ums", _preambleMillis);
 
           return false;
         }
         return true;
       }
-      _activityAt = 0; _headerSeen = false;
+      _activityAt = 0; _preambleSeen = false; _headerSeen = false;
       return false;
     }
 
@@ -155,6 +158,9 @@ class CustomSX1262 : public SX1262 {
     void setMaxPayloadMillis(uint32_t payloadMillis) {
       _maxPayloadMillis = payloadMillis;
       MESH_DEBUG_PRINTLN("Set _maxPayloadMillis=%u", _maxPayloadMillis);
+    }
+    void setActivityAt(uint32_t activityMillis) {
+      if (_activityAt == 0) _activityAt = activityMillis;
     }
 
     bool getRxBoostedGainMode() {

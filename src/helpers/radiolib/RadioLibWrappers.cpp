@@ -195,6 +195,9 @@ bool RadioLibWrapper::isChannelActive() {
     // try to read a non-existent packet and count a spurious recv error.
     state = STATE_IDLE;
     startRecv();
+    if (result == RADIOLIB_PREAMBLE_DETECTED || result == RADIOLIB_LORA_DETECTED) {
+    setActivityDetectedTimer(millis()); // set the shared activity detected timer
+    }
     if (result != RADIOLIB_CHANNEL_FREE) return true;
   }
 

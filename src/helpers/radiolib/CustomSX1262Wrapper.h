@@ -26,6 +26,9 @@ public:
   bool isReceivingPacket() override { 
     return ((CustomSX1262 *)_radio)->isReceiving();
   }
+
+  void setActivityDetectedTimer(uint32_t activityMillis) override { ((CustomSX1262 *)_radio)->setActivityAt(activityMillis); }
+  
   float getCurrentRSSI() override {
     return ((CustomSX1262 *)_radio)->getRSSI(false);
   }
